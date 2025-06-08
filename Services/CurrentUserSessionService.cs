@@ -1,27 +1,37 @@
-﻿namespace shlauncher.Services
+﻿
+using shlauncher.Models; // Para Profile
+using Supabase.Gotrue; // Para Session
+
+namespace shlauncher.Services
 {
     public partial class CurrentUserSessionService : ObservableObject
     {
         [ObservableProperty]
-        private Models.User? _currentUser;
+        private Models.Profile? _currentProfile;
 
         [ObservableProperty]
-        private string? _sessionToken;
+        private Session? _currentSupabaseSession; // Almacenar la sesión de Supabase
 
-        public bool IsUserLoggedIn => CurrentUser != null && !string.IsNullOrEmpty(SessionToken);
+        public bool IsUserLoggedIn => CurrentProfile != null && CurrentSupabaseSession?.User != null && !string.IsNullOrEmpty(CurrentSupabaseSession.AccessToken);
 
-        public void SetCurrentUser(Models.User user, string token)
+        // El AccessToken para el pipe
+        public string? PipeToken => CurrentSupabaseSession?.AccessToken;
+
+        public void SetCurrentUser(Models.Profile profile, Session supabaseSession)
         {
-            CurrentUser = user;
-            SessionToken = token;
+            CurrentProfile = profile;
+            CurrentSupabaseSession = supabaseSession;
             OnPropertyChanged(nameof(IsUserLoggedIn));
+            OnPropertyChanged(nameof(PipeToken));
         }
 
         public void ClearCurrentUser()
         {
-            CurrentUser = null;
-            SessionToken = null;
+            CurrentProfile = null;
+            CurrentSupabaseSession = null;
+            // También podrías llamar a _supabaseService.Client.Auth.SignOut() aquí si quieres invalidar la sesión en Supabase.
             OnPropertyChanged(nameof(IsUserLoggedIn));
+            OnPropertyChanged(nameof(PipeToken));
         }
     }
 }

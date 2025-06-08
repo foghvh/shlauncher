@@ -55,7 +55,7 @@
                 <ColumnDefinition Width="*" MinWidth="300"/>
             </Grid.ColumnDefinitions>
 
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,20,0" Padding="0,0,10,0">
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="-5,0,20,0" Padding="0,0,30,0">
                 <ItemsControl ItemsSource="{Binding ViewModel.UpdateLogs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type models:SupabaseUpdateLogEntry}">
@@ -117,7 +117,7 @@
                                 <TextBlock Grid.Column="1" Text="{Binding ViewModel.LicenseType}" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             </Grid>
 
-                            <ui:Button Content="▶ PLAY" 
+                            <ui:Button Content="LAUNCH" 
                                        Icon="{ui:SymbolIcon Play24}"
                                        Command="{Binding ViewModel.PlayCommand}" 
                                        Appearance="Primary"

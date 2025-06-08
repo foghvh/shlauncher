@@ -15,12 +15,21 @@ namespace shlauncher.ViewModels.Pages
         private readonly CurrentUserSessionService _sessionService;
         private readonly INavigationService _navigationService;
         private readonly AuthService _authService;
+        private readonly SupabaseService _supabaseService; // Añadir SupabaseService
+        private readonly MainWindowViewModel _mainWindowViewModel;
 
-        public SettingsViewModel(CurrentUserSessionService sessionService, INavigationService navigationService, AuthService authService)
+        public SettingsViewModel(
+            CurrentUserSessionService sessionService,
+            INavigationService navigationService,
+            AuthService authService,
+            SupabaseService supabaseService,
+            MainWindowViewModel mainWindowViewModel)
         {
             _sessionService = sessionService;
             _navigationService = navigationService;
             _authService = authService;
+            _supabaseService = supabaseService;
+            _mainWindowViewModel = mainWindowViewModel;
         }
 
         public Task OnNavigatedToAsync()
@@ -32,7 +41,7 @@ namespace shlauncher.ViewModels.Pages
 
         public Task OnNavigatedFromAsync()
         {
-            _isInitialized = false;
+            _isInitialized = false; // Para que se reinicialice si volvemos
             return Task.CompletedTask;
         }
 
@@ -75,11 +84,21 @@ namespace shlauncher.ViewModels.Pages
         }
 
         [RelayCommand]
-        private void Logout()
+        private async Task Logout()
         {
+            _mainWindowViewModel.IsGlobalLoading = true;
+            try
+            {
+                await _supabaseService.Client.Auth.SignOut();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Supabase SignOut: {ex.Message}");
+            }
             _sessionService.ClearCurrentUser();
             _authService.ClearRememberedUser();
             _navigationService.Navigate(typeof(Views.Pages.WelcomePage));
+            _mainWindowViewModel.IsGlobalLoading = false;
         }
 
         [RelayCommand]
@@ -89,6 +108,10 @@ namespace shlauncher.ViewModels.Pages
             if (navigationControl != null && navigationControl.CanGoBack)
             {
                 _navigationService.GoBack();
+            }
+            else // Si no puede ir atrás (probablemente está en MainLauncherPage), ir a MainLauncherPage
+            {
+                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage));
             }
         }
     }

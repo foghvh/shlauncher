@@ -1,5 +1,7 @@
 ﻿using System.Threading.Tasks;
 using System.Diagnostics;
+using shlauncher.Models; // Para Profile
+using Supabase.Gotrue; // Para Session
 
 namespace shlauncher.ViewModels.Pages
 {
@@ -11,7 +13,7 @@ namespace shlauncher.ViewModels.Pages
         private readonly MainWindowViewModel _mainWindowViewModel;
 
         [ObservableProperty]
-        private string? _username;
+        private string? _email; // Cambiado de Username a Email para el login
 
         private string? _password;
         public string? Password
@@ -35,91 +37,73 @@ namespace shlauncher.ViewModels.Pages
 
         private void LoadRememberedUser()
         {
-            if (_sessionService.IsUserLoggedIn && _sessionService.CurrentUser != null)
+            // La lógica de GetRememberedUserSessionAsync ya es llamada en App.OnStartup
+            // Aquí podríamos pre-rellenar el email si _sessionService.CurrentUser.Email existe
+            // o si Properties.Settings.Default.RememberedUsername (que ahora sería email) existe.
+            // Por simplicidad, dejaremos que App.OnStartup maneje la restauración de sesión.
+            // Si no hay sesión restaurada, esta página se mostrará y el usuario ingresará datos.
+            // Si el usuario fue recordado pero la sesión expiró, podríamos querer pre-rellenar el email.
+            var rememberedLoginForUi = Properties.Settings.Default.RememberedUsername; // Esto ahora contendría el login/email
+            if (!string.IsNullOrEmpty(rememberedLoginForUi) && Properties.Settings.Default.RememberedToken != "")
             {
-                Username = _sessionService.CurrentUser.Login;
+                Email = rememberedLoginForUi; // Asumimos que el "username" recordado es el email
                 RememberMe = true;
-            }
-            else
-            {
-                var (token, rememberedUsername) = _authService.GetRememberedUser();
-                if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(rememberedUsername))
-                {
-                    Username = rememberedUsername;
-                    RememberMe = true;
-                }
             }
         }
 
         [RelayCommand]
         private async Task Login()
         {
-            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+            if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
             {
-                var msgBox = new Wpf.Ui.Controls.MessageBox
-                {
-                    Title = "Login Failed",
-                    Content = "Please enter both username and password.",
-                    CloseButtonText = "OK",
-                    PrimaryButtonText = "" // No primary button needed if close is OK
-                };
-                await msgBox.ShowDialogAsync();
+                await ShowMessageAsync("Login Failed", "Please enter both email and password.");
                 return;
             }
 
             _mainWindowViewModel.IsGlobalLoading = true;
-            var (success, token, userData, errorMessage) = await _authService.LoginAsync(Username, Password);
+            var (success, sessionData, profileData, errorMessage) = await _authService.LoginAsync(Email, Password);
 
-            if (success && token != null && userData != null)
+            if (success && sessionData?.User != null && profileData != null)
             {
-                _sessionService.SetCurrentUser(userData, token);
-                if (RememberMe)
+                _sessionService.SetCurrentUser(profileData, sessionData);
+                if (RememberMe && sessionData.User.Id != null && profileData.Login != null && sessionData.AccessToken != null && sessionData.RefreshToken != null)
                 {
-                    _authService.RememberUser(token, userData.Login!);
+                    _authService.RememberUser(sessionData.AccessToken, sessionData.RefreshToken, sessionData.User.Id, profileData.Login);
                 }
                 else
                 {
                     _authService.ClearRememberedUser();
                 }
-                _navigationService.Navigate(typeof(Views.Pages.LoadingPage));
+                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage)); // O LoadingPage si prefieres
             }
             else
             {
-                var msgBox = new Wpf.Ui.Controls.MessageBox
-                {
-                    Title = "Login Failed",
-                    Content = errorMessage ?? "Login failed due to an unknown error.",
-                    CloseButtonText = "OK"
-                };
-                await msgBox.ShowDialogAsync();
+                await ShowMessageAsync("Login Failed", errorMessage ?? "Login failed due to an unknown error.");
             }
             _mainWindowViewModel.IsGlobalLoading = false;
         }
 
         [RelayCommand]
-        private void Register()
+        private void NavigateToSignUp() // Cambiado de Register a NavigateToSignUp
         {
-            try
+            _navigationService.Navigate(typeof(Views.Pages.SignUpPage));
+        }
+
+        private async Task ShowMessageAsync(string title, string content)
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
             {
-                Process.Start(new ProcessStartInfo("https://skinhunterv2.vercel.app") { UseShellExecute = true });
-            }
-            catch (System.Exception ex)
-            {
-                Debug.WriteLine($"Error opening registration link: {ex.Message}");
-                var msgBox = new Wpf.Ui.Controls.MessageBox
-                {
-                    Title = "Error",
-                    Content = $"Could not open registration page: {ex.Message}",
-                    CloseButtonText = "OK"
-                };
-                _ = msgBox.ShowDialogAsync(); // Fire and forget if not awaiting result
-            }
+                Title = title,
+                Content = content,
+                CloseButtonText = "OK"
+            };
+            await msgBox.ShowDialogAsync();
         }
 
         public override Task OnNavigatedToAsync()
         {
-            Password = null;
-            LoadRememberedUser();
+            Password = null; // Limpiar contraseña al navegar a esta página
+            // La carga de usuario recordado es mejor en el constructor o App.xaml.cs para que ocurra una vez
             return base.OnNavigatedToAsync();
         }
     }

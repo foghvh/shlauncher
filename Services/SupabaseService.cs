@@ -4,11 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using Client = Supabase.Client;
 using Supabase.Gotrue;
-using BCryptNet = BCrypt.Net;
 using System.Text.Json;
 using System.Net.Http;
 using System;
 using System.Diagnostics;
+using shlauncher.Models;
+using Postgrest.Responses;
+using Postgrest.Models;
+using Postgrest;
+using System.Net;
 
 namespace shlauncher.Services
 {
@@ -20,12 +24,14 @@ namespace shlauncher.Services
         private const string SupabaseUrl = "https://odlqwkgewzxxmbsqutja.supabase.co";
         private const string SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbHF3a2dld3p4eG1ic3F1dGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQyMTM2NzcsImV4cCI6MjA0OTc4OTY3N30.qka6a71bavDeUQgy_BKoVavaClRQa_gT36Au7oO9AF0";
 
+        public Client Client => _supabase;
+
         public SupabaseService()
         {
             var options = new SupabaseOptions
             {
                 AutoRefreshToken = true,
-                AutoConnectRealtime = true
+                AutoConnectRealtime = true,
             };
             _supabase = new Client(SupabaseUrl, SupabaseAnonKey, options);
             _httpClient = new HttpClient();
@@ -34,105 +40,85 @@ namespace shlauncher.Services
         public async Task InitializeAsync()
         {
             await _supabase.InitializeAsync();
+            Debug.WriteLine($"Supabase initialized. Current User: {_supabase.Auth.CurrentUser?.Email}");
         }
 
-        public Client GetClient()
+        public async Task<Models.Profile?> GetUserProfile(Guid userId)
         {
-            return _supabase;
-        }
-
-        public async Task<Models.User?> GetUserByLogin(string login)
-        {
-            var response = await _supabase.From<Models.User>().Filter("login", Postgrest.Constants.Operator.Equals, login).Get();
-
-            if (response?.ResponseMessage != null && !response.ResponseMessage.IsSuccessStatusCode)
+            try
             {
-                string errorDetail = response.Content ?? response.ResponseMessage.ReasonPhrase ?? "Unknown error fetching user by login.";
-                Debug.WriteLine($"Error fetching user by login {login}: {errorDetail}");
+                var response = await _supabase.From<Models.Profile>()
+                                          .Filter("id", Postgrest.Constants.Operator.Equals, userId.ToString())
+                                          .Single();
+                return response;
+            }
+            catch (Postgrest.Exceptions.PostgrestException pgEx) when (pgEx.Message.Contains("JSON object requested, multiple (or no) rows returned") || pgEx.Content?.Contains("PGRST116") == true)
+            {
+                Debug.WriteLine($"GetUserProfile for {userId}: No profile found. Message: {pgEx.Message}, StatusCode: {pgEx.StatusCode}");
                 return null;
             }
-            return response?.Models.FirstOrDefault();
-        }
-        public async Task<Models.User?> GetUserByEmail(string email)
-        {
-            var response = await _supabase.From<Models.User>().Filter("email", Postgrest.Constants.Operator.Equals, email).Get();
-
-            if (response?.ResponseMessage != null && !response.ResponseMessage.IsSuccessStatusCode)
+            catch (Exception ex)
             {
-                string errorDetail = response.Content ?? response.ResponseMessage.ReasonPhrase ?? "Unknown error fetching user by email.";
-                Debug.WriteLine($"Error fetching user by email {email}: {errorDetail}");
+                Debug.WriteLine($"Error fetching user profile for {userId}: {ex.Message}");
                 return null;
             }
-            return response?.Models.FirstOrDefault();
         }
 
-        public async Task<Session?> SignUpUserWithPassword(string email, string password, string username)
+        public async Task<Models.Profile?> InsertNewUserProfile(Models.Profile profileData)
         {
-            var existingUserByEmail = await GetUserByEmail(email);
-            if (existingUserByEmail != null)
+            try
             {
-                throw new System.Exception("User with this email already exists.");
-            }
+                ModeledResponse<Models.Profile> response = await _supabase.From<Models.Profile>()
+                                                                   .Insert(profileData);
 
-            var existingUserByLogin = await GetUserByLogin(username);
-            if (existingUserByLogin != null)
-            {
-                throw new System.Exception("User with this login already exists.");
-            }
-
-            string hashedPassword = BCryptNet.BCrypt.HashPassword(password);
-            var newUser = new Models.User
-            {
-                Email = email,
-                PasswordHash = hashedPassword,
-                Login = username,
-                Credits = 0,
-                IsBuyer = false
-            };
-
-            var insertResponse = await _supabase.From<Models.User>().Insert(newUser);
-
-            if (insertResponse?.ResponseMessage != null && insertResponse.ResponseMessage.IsSuccessStatusCode && insertResponse.Models.Any())
-            {
-                return null;
-            }
-            else
-            {
-                string errorMessage = "Failed to register user in custom table.";
-
-                if (insertResponse?.ResponseMessage != null && !insertResponse.ResponseMessage.IsSuccessStatusCode)
+                if (response.ResponseMessage != null && response.ResponseMessage.IsSuccessStatusCode)
                 {
-                    if (!string.IsNullOrEmpty(insertResponse.Content))
+                    if (response.Models != null && response.Models.Any())
                     {
-                        try
-                        {
-                            var errorDetails = JsonSerializer.Deserialize<Dictionary<string, string>>(insertResponse.Content);
-                            if (errorDetails != null && errorDetails.TryGetValue("message", out var msg))
-                            {
-                                errorMessage = msg;
-                            }
-                            else
-                            {
-                                errorMessage = insertResponse.Content;
-                            }
-                        }
-                        catch
-                        {
-                            errorMessage = insertResponse.Content;
-                        }
+                        Debug.WriteLine($"Profile inserted successfully (model returned) for ID: {response.Models.First().Id}, Login: {response.Models.First().Login}");
+                        return response.Models.First();
                     }
-                    else if (!string.IsNullOrEmpty(insertResponse.ResponseMessage.ReasonPhrase))
-                    {
-                        errorMessage = insertResponse.ResponseMessage.ReasonPhrase;
-                    }
+                    // Si la inserción fue exitosa pero no devolvió el modelo, lo volvemos a obtener.
+                    Debug.WriteLine($"Profile insert HTTP call successful for ID: {profileData.Id}, but no model returned in response. Fetching again.");
+                    return await GetUserProfile(profileData.Id);
                 }
-                else if (insertResponse == null || insertResponse.ResponseMessage == null)
-                {
-                    errorMessage = "Failed to register user: No valid response from server.";
-                }
+                Debug.WriteLine($"Failed to insert new profile. HttpStatusCode: {response.ResponseMessage?.StatusCode}, Content: {response.Content}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error inserting new profile for {profileData.Id}: {ex.Message}");
+                if (ex is Postgrest.Exceptions.PostgrestException pgEx) { Debug.WriteLine($"PostgrestDetails: {pgEx.Content}, StatusCode: {pgEx.StatusCode}"); }
+                return null;
+            }
+        }
 
-                Debug.WriteLine($"Supabase Insert Error: {errorMessage}");
-                throw new System.Exception(errorMessage);
+        public async Task<Models.Profile?> UpdateExistingUserProfile(Models.Profile profileData)
+        {
+            try
+            {
+                ModeledResponse<Models.Profile> response = await _supabase.From<Models.Profile>()
+                                                                   .Where(x => x.Id == profileData.Id)
+                                                                   .Update(profileData);
+
+                if (response.ResponseMessage != null && response.ResponseMessage.IsSuccessStatusCode)
+                {
+                    if (response.Models != null && response.Models.Any())
+                    {
+                        Debug.WriteLine($"Profile updated successfully (model returned) for ID: {response.Models.First().Id}, New Login: {response.Models.First().Login}");
+                        return response.Models.First();
+                    }
+                    Debug.WriteLine($"Update HTTP call was success for ID: {profileData.Id}, but no model returned in response. Fetching profile again.");
+                    return await GetUserProfile(profileData.Id);
+                }
+                Debug.WriteLine($"Failed to update profile. HttpStatusCode: {response.ResponseMessage?.StatusCode}, Content: {response.Content}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating profile for {profileData.Id}: {ex.Message}");
+                if (ex is Postgrest.Exceptions.PostgrestException pgEx) { Debug.WriteLine($"PostgrestDetails: {pgEx.Content}, StatusCode: {pgEx.StatusCode}"); }
+                return null;
             }
         }
 

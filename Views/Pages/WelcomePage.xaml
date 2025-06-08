@@ -26,13 +26,14 @@
                            HorizontalAlignment="Stretch" 
                            Height="36"
                            Margin="0,0,5,0"/>
-                <ui:Button Grid.Column="2" Content="BUY" 
-                           Command="{Binding ViewModel.BuyCommand}" 
+                <ui:Button Grid.Column="2" Content="SIGN UP" 
+                           Command="{Binding ViewModel.NavigateToSignUpCommand}" 
                            Appearance="Secondary"
                            HorizontalAlignment="Stretch"
                            Height="36"
                            Margin="5,0,0,0"/>
             </Grid>
+            <ui:HyperlinkButton Content="Go to website" Margin="0,20,0,0" HorizontalAlignment="Center" Command="{Binding ViewModel.BuyCommand}"/>
         </StackPanel>
     </Grid>
 </Page>

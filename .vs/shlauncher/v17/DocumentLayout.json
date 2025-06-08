@@ -3,40 +3,50 @@
   "WorkspaceRootPath": "C:\\Users\\dev\\source\\repos\\shlauncher\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\viewmodels\\pages\\settingsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:viewmodels\\pages\\settingsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\viewmodels\\windows\\mainwindowviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\models\\appconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:models\\appconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\viewmodels\\overlaytogglebuttonviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\helpers\\enumtobooleanconverter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:helpers\\enumtobooleanconverter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\views\\windows\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:views\\windows\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\services\\modtoolsservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\views\\pages\\settingspage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:views\\pages\\settingspage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\converters\\symboltoiconconverter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\views\\pages\\mainlauncherpage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:views\\pages\\mainlauncherpage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\viewmodels\\pages\\mainlauncherviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:viewmodels\\pages\\mainlauncherviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\viewmodels\\dialogs\\skindetailviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\viewmodels\\windows\\mainwindowviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:viewmodels\\windows\\mainwindowviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\services\\applicationhostservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|c:\\users\\dev\\source\\repos\\shlauncher\\views\\pages\\signinpage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{E9095BB5-C864-466A-95A1-1066F73F884D}|shlauncher.csproj|solutionrelative:views\\pages\\signinpage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\services\\userpreferencesservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\models\\profile.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\viewmodels\\pages\\installedskinsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\viewmodels\\pages\\profileviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\services\\authtokenmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\views\\pages\\installedskinspage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}|..\\skinhunter\\skinhunter.csproj|c:\\users\\dev\\source\\repos\\skinhunter\\services\\supabaseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -46,69 +56,62 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 3,
           "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "AppConfig.cs",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\Models\\AppConfig.cs",
-              "RelativeDocumentMoniker": "Models\\AppConfig.cs",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\Models\\AppConfig.cs",
-              "RelativeToolTip": "Models\\AppConfig.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAABAAAAAAAAAA==",
+              "Title": "OverlayToggleButtonViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\OverlayToggleButtonViewModel.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\ViewModels\\OverlayToggleButtonViewModel.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\OverlayToggleButtonViewModel.cs",
+              "RelativeToolTip": "..\\skinhunter\\ViewModels\\OverlayToggleButtonViewModel.cs",
+              "ViewState": "AgIAACYAAAAAAAAAAAA4wDoAAABEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-03T20:12:21.777Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "EnumToBooleanConverter.cs",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\Helpers\\EnumToBooleanConverter.cs",
-              "RelativeDocumentMoniker": "Helpers\\EnumToBooleanConverter.cs",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\Helpers\\EnumToBooleanConverter.cs",
-              "RelativeToolTip": "Helpers\\EnumToBooleanConverter.cs",
-              "ViewState": "AgIAABgAAAAAAAAAAAAowC0AAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-03T20:11:53.904Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "SettingsViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\ViewModels\\Pages\\SettingsViewModel.cs",
-              "RelativeDocumentMoniker": "ViewModels\\Pages\\SettingsViewModel.cs",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\ViewModels\\Pages\\SettingsViewModel.cs",
-              "RelativeToolTip": "ViewModels\\Pages\\SettingsViewModel.cs",
-              "ViewState": "AgIAAEkAAAAAAAAAAAAowF4AAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-03T20:08:47.193Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "SettingsPage.xaml",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Pages\\SettingsPage.xaml",
-              "RelativeDocumentMoniker": "Views\\Pages\\SettingsPage.xaml",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Pages\\SettingsPage.xaml",
-              "RelativeToolTip": "Views\\Pages\\SettingsPage.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-06-03T20:04:17.3Z",
+              "WhenOpened": "2025-06-08T18:19:09.265Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 3,
-              "Title": "MainWindow.xaml",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Windows\\MainWindow.xaml",
-              "RelativeDocumentMoniker": "Views\\Windows\\MainWindow.xaml",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Windows\\MainWindow.xaml",
-              "RelativeToolTip": "Views\\Windows\\MainWindow.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-06-03T15:18:31.528Z",
+              "Title": "ModToolsService.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\ModToolsService.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Services\\ModToolsService.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\ModToolsService.cs",
+              "RelativeToolTip": "..\\skinhunter\\Services\\ModToolsService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-08T18:18:33.424Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindowViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Windows\\MainWindowViewModel.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\ViewModels\\Windows\\MainWindowViewModel.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Windows\\MainWindowViewModel.cs",
+              "RelativeToolTip": "..\\skinhunter\\ViewModels\\Windows\\MainWindowViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-08T18:18:15.917Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "SymbolToIconConverter.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Converters\\SymbolToIconConverter.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Converters\\SymbolToIconConverter.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Converters\\SymbolToIconConverter.cs",
+              "RelativeToolTip": "..\\skinhunter\\Converters\\SymbolToIconConverter.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAmwBkAAAA9AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-08T18:18:02.219Z",
               "EditorCaption": ""
             },
             {
@@ -120,55 +123,134 @@
               "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Pages\\MainLauncherPage.xaml",
               "RelativeToolTip": "Views\\Pages\\MainLauncherPage.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-06-03T16:42:07Z",
+              "WhenOpened": "2025-06-08T15:52:46.157Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "ProfileViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Pages\\ProfileViewModel.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\ViewModels\\Pages\\ProfileViewModel.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Pages\\ProfileViewModel.cs",
+              "RelativeToolTip": "..\\skinhunter\\ViewModels\\Pages\\ProfileViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-07T20:25:19.1Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "Profile.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Models\\Profile.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Models\\Profile.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Models\\Profile.cs",
+              "RelativeToolTip": "..\\skinhunter\\Models\\Profile.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-07T20:07:31.884Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "InstalledSkinsPage.xaml",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Views\\Pages\\InstalledSkinsPage.xaml",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Views\\Pages\\InstalledSkinsPage.xaml",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Views\\Pages\\InstalledSkinsPage.xaml",
+              "RelativeToolTip": "..\\skinhunter\\Views\\Pages\\InstalledSkinsPage.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-06-07T19:53:21.777Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "UserPreferencesService.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\UserPreferencesService.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Services\\UserPreferencesService.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\UserPreferencesService.cs",
+              "RelativeToolTip": "..\\skinhunter\\Services\\UserPreferencesService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-07T19:52:54.628Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "App.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\App.xaml.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\App.xaml.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\App.xaml.cs",
+              "RelativeToolTip": "..\\skinhunter\\App.xaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-07T18:51:27.959Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "InstalledSkinsViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Pages\\InstalledSkinsViewModel.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\ViewModels\\Pages\\InstalledSkinsViewModel.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Pages\\InstalledSkinsViewModel.cs",
+              "RelativeToolTip": "..\\skinhunter\\ViewModels\\Pages\\InstalledSkinsViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-08T15:03:17.525Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "SupabaseService.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\SupabaseService.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Services\\SupabaseService.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\SupabaseService.cs",
+              "RelativeToolTip": "..\\skinhunter\\Services\\SupabaseService.cs",
+              "ViewState": "AgIAADcAAAAAAAAAAAAmwEsAAAA1AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-07T19:09:39.617Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "ApplicationHostService.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\ApplicationHostService.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Services\\ApplicationHostService.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\ApplicationHostService.cs",
+              "RelativeToolTip": "..\\skinhunter\\Services\\ApplicationHostService.cs",
+              "ViewState": "AgIAAOcAAAAAAAAAAAAkwPIAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-07T18:51:29.521Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 6,
-              "Title": "MainLauncherViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\ViewModels\\Pages\\MainLauncherViewModel.cs",
-              "RelativeDocumentMoniker": "ViewModels\\Pages\\MainLauncherViewModel.cs",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\ViewModels\\Pages\\MainLauncherViewModel.cs",
-              "RelativeToolTip": "ViewModels\\Pages\\MainLauncherViewModel.cs",
-              "ViewState": "AgIAAPkAAAAAAAAAAAAAAA8BAAABAAAAAAAAAA==",
+              "Title": "SkinDetailViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Dialogs\\SkinDetailViewModel.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\ViewModels\\Dialogs\\SkinDetailViewModel.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\ViewModels\\Dialogs\\SkinDetailViewModel.cs",
+              "RelativeToolTip": "..\\skinhunter\\ViewModels\\Dialogs\\SkinDetailViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAeAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-03T16:41:55.828Z",
+              "WhenOpened": "2025-06-07T18:51:04.391Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "MainWindowViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\ViewModels\\Windows\\MainWindowViewModel.cs",
-              "RelativeDocumentMoniker": "ViewModels\\Windows\\MainWindowViewModel.cs",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\ViewModels\\Windows\\MainWindowViewModel.cs",
-              "RelativeToolTip": "ViewModels\\Windows\\MainWindowViewModel.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAABAAAAAAAAAA==",
+              "DocumentIndex": 12,
+              "Title": "AuthTokenManager.cs",
+              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\AuthTokenManager.cs",
+              "RelativeDocumentMoniker": "..\\skinhunter\\Services\\AuthTokenManager.cs",
+              "ToolTip": "C:\\Users\\dev\\source\\repos\\skinhunter\\Services\\AuthTokenManager.cs",
+              "RelativeToolTip": "..\\skinhunter\\Services\\AuthTokenManager.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-03T16:41:40.973Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "SignInPage.xaml",
-              "DocumentMoniker": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Pages\\SignInPage.xaml",
-              "RelativeDocumentMoniker": "Views\\Pages\\SignInPage.xaml",
-              "ToolTip": "C:\\Users\\dev\\source\\repos\\shlauncher\\Views\\Pages\\SignInPage.xaml",
-              "RelativeToolTip": "Views\\Pages\\SignInPage.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-06-03T15:08:44.739Z"
-            }
-          ]
-        },
-        {
-          "DockedWidth": 98,
-          "SelectedChildIndex": -1,
-          "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+              "WhenOpened": "2025-06-07T20:21:31.948Z"
             }
           ]
         }

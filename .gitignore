@@ -4,3 +4,5 @@
 
 /.vs
 /bin/Debug/net9.0-windows
+/obj/Debug/net9.0-windows/shlauncher.AssemblyInfo.cs
+/obj/Debug/net9.0-windows/shlauncher.AssemblyInfoInputs.cache

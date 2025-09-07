@@ -5,7 +5,6 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    xmlns:local="clr-namespace:shlauncher.Views.Windows"
     xmlns:vmsWin="clr-namespace:shlauncher.ViewModels.Windows"
     mc:Ignorable="d"
     Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
@@ -13,7 +12,7 @@
     Height="600"
     MinWidth="700"
     MinHeight="500"
-    d:DataContext="{d:DesignInstance Type=vmsWin:MainWindowViewModel, IsDesignTimeCreatable=True}"
+    d:DataContext="{d:DesignInstance Type=vmsWin:MainWindowViewModel, IsDesignTimeCreatable=False}"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"
@@ -42,11 +41,39 @@
             IsPaneOpen="False"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
             FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
-            PaneDisplayMode="Top">
+            PaneDisplayMode="Top"
+            Navigated="RootNavigation_OnNavigated">
             <ui:NavigationView.ContentOverlay>
-                <Grid x:Name="ContentOverlayGrid">
-                    <ui:ProgressRing IsIndeterminate="True" VerticalAlignment="Center" HorizontalAlignment="Center"
-                                 Visibility="{Binding ViewModel.IsGlobalLoading, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                <Grid x:Name="ContentOverlayGrid" Background="#7F000000" Opacity="0" Visibility="Collapsed">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ViewModel.IsGlobalLoading, Mode=OneWay}" Value="True">
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static Visibility.Visible}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.25" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                    <DataTrigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.25" />
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility">
+                                                    <DiscreteObjectKeyFrame KeyTime="0:0:0.25" Value="{x:Static Visibility.Collapsed}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.ExitActions>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <ui:ProgressRing IsIndeterminate="True" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Grid>
             </ui:NavigationView.ContentOverlay>
         </ui:NavigationView>

@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System;
@@ -10,24 +10,87 @@ using Supabase.Gotrue;
 using shlauncher.Models;
 using System.Collections.Generic;
 using Postgrest.Responses;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace shlauncher.Services
 {
     public class AuthService
     {
         private readonly SupabaseService _supabaseService;
+        private readonly PipeServerService _pipeServerService;
+        private readonly CurrentUserSessionService _currentUserSessionService;
+        private Timer? _sessionRefreshTimer;
         private const string Entropy = "SHLAUNCHER_ENTROPY_V2_MORE_SECURE";
 
         public AuthService(SupabaseService supabaseService)
         {
             _supabaseService = supabaseService;
+            // Resolver dependencias manualmente para evitar problemas de DI
+            _pipeServerService = App.Services.GetRequiredService<PipeServerService>();
+            _currentUserSessionService = App.Services.GetRequiredService<CurrentUserSessionService>();
         }
 
-        public async Task<(bool Success, Session? Session, Models.Profile? ProfileData, string? ErrorMessage)> LoginAsync(string email, string password)
+        private void ScheduleTokenRefresh(Session session)
+        {
+            _sessionRefreshTimer?.Dispose();
+
+            if (session.ExpiresIn <= 0) return;
+
+            var expiresIn = TimeSpan.FromSeconds(session.ExpiresIn);
+            var refreshTime = expiresIn.TotalMilliseconds * 0.9;
+
+            _sessionRefreshTimer = new Timer(async _ => await RefreshSessionAsync(), null, (int)refreshTime, Timeout.Infinite);
+            Debug.WriteLine($"[AuthService] Token refresh scheduled in {refreshTime / 1000} seconds.");
+        }
+
+        private async Task RefreshSessionAsync()
+        {
+            Debug.WriteLine("[AuthService] Attempting to refresh session...");
+            try
+            {
+                var newSession = await _supabaseService.Client.Auth.RefreshSession();
+                if (newSession != null && !string.IsNullOrEmpty(newSession.AccessToken))
+                {
+                    Debug.WriteLine("[AuthService] Session refreshed successfully.");
+                    var user = _currentUserSessionService.CurrentProfile;
+                    if (user != null && newSession.User != null)
+                    {
+                        RememberUser(newSession.AccessToken, newSession.RefreshToken, newSession.User.Id, user.Login);
+                        _currentUserSessionService.SetCurrentUser(user, newSession);
+
+                        await _pipeServerService.SendTokenAsync("skinhunter_pipe", newSession.AccessToken, CancellationToken.None);
+
+                        ScheduleTokenRefresh(newSession);
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("[AuthService] Failed to refresh session. Session object was null or token was empty.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AuthService] Exception during session refresh: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool Success, Session? Session, Models.Profile? ProfileData, string? ErrorMessage)> LoginAsync(string login, string password)
         {
             try
             {
-                var session = await _supabaseService.Client.Auth.SignIn(email, password);
+                // 1. Llama a la función de la base de datos para obtener el email de forma segura
+                // ---- FIX START: Usar Rpc<string> para deserializar directamente el resultado a un string ----
+                var userEmail = await _supabaseService.Client.Rpc<string>("get_email_from_login", new { login_param = login });
+
+                if (string.IsNullOrEmpty(userEmail)) // Ahora `userEmail` es un string y podemos verificarlo directamente
+                {
+                    return (false, null, null, "Login failed. User not found.");
+                }
+
+                // 2. Intenta iniciar sesión con el email y la contraseña
+                var session = await _supabaseService.Client.Auth.SignIn(userEmail, password); // Pasamos el string limpio
+                // ---- FIX END ----
 
                 if (session?.User?.Id == null || string.IsNullOrEmpty(session.AccessToken))
                 {
@@ -35,8 +98,10 @@ namespace shlauncher.Services
                     {
                         return (false, null, null, "Login failed. Please confirm your email address first.");
                     }
-                    return (false, null, null, "Login failed. Invalid credentials or user not found.");
+                    return (false, null, null, "Login failed. Invalid credentials.");
                 }
+
+                ScheduleTokenRefresh(session);
 
                 string accessTokenShort = session.AccessToken?.Substring(0, Math.Min(session.AccessToken.Length, 10)) ?? "N/A";
                 Debug.WriteLine($"Login successful for user {session.User.Id}. Supabase Client CurrentUser: {_supabaseService.Client.Auth.CurrentUser?.Id}, Session AccessToken (short): {accessTokenShort}...");
@@ -51,7 +116,7 @@ namespace shlauncher.Services
                         Login = session.User.Email?.Split('@')[0],
                         Preferences = new Dictionary<string, object?> { ["theme"] = "dark" }
                     };
-                    var createdProfile = await _supabaseService.InsertNewUserProfile(profileData); // Esto usa la sesión del usuario logueado
+                    var createdProfile = await _supabaseService.InsertNewUserProfile(profileData);
                     if (createdProfile == null) Debug.WriteLine($"Failed to create missing profile for user {session.User.Id} after login via fallback.");
                     else profileData = createdProfile;
                 }
@@ -72,7 +137,7 @@ namespace shlauncher.Services
                 string friendlyMessage = "Login failed. ";
                 if (ex.Message.Contains("Invalid login credentials"))
                 {
-                    friendlyMessage += "Invalid email or password.";
+                    friendlyMessage += "Invalid username or password."; // Mensaje más genérico para el usuario
                 }
                 else if (ex.Message.Contains("Email not confirmed") || ex.Message.Contains("awaiting verification"))
                 {
@@ -135,27 +200,17 @@ namespace shlauncher.Services
                 string sessionAccessTokenShort = session?.AccessToken?.Substring(0, Math.Min(session.AccessToken?.Length ?? 0, 10)) ?? "N/A";
                 Debug.WriteLine($"User object from SignUp: ID: {signedUpUser.Id}, Email: {signedUpUser.Email}, ConfirmedAt: {signedUpUser.ConfirmedAt}, Session AccessToken Present: {!string.IsNullOrEmpty(session?.AccessToken)} ({sessionAccessTokenShort})");
 
-                // Si se requiere confirmación de email, el AccessToken estará vacío/nulo aquí.
-                // Confiamos en que el trigger haya creado el perfil y establecido el login desde metadata.
-                // No intentaremos actualizar el perfil desde C# en este punto del flujo de SignUp
-                // si se requiere confirmación, ya que no tendríamos un token de sesión válido para hacerlo.
-                // El login se verificará/establecerá en el primer SignIn.
-
-                // Obtener el perfil para devolverlo (puede ser null si el trigger falló catastróficamente)
                 Models.Profile? createdProfile = await _supabaseService.GetUserProfile(Guid.Parse(signedUpUser.Id));
 
                 if (createdProfile == null)
                 {
                     Debug.WriteLine($"WARNING: Profile for user {signedUpUser.Id} was NOT found after SignUp. Trigger failed critically. The user exists in auth.users but not in public.profiles.");
-                    // Esto es un estado problemático. El usuario existe en auth pero no tiene perfil.
                     return (true, signedUpUser, null, "Registration partially succeeded. Profile creation pending. Please try logging in after email confirmation, or contact support if issues persist.");
                 }
 
                 if (createdProfile.Login != login)
                 {
-                    Debug.WriteLine($"WARNING: Profile login is '{createdProfile.Login}', but expected '{login}' from metadata. This might happen if the login from metadata was a duplicate and the trigger inserted NULL instead, or if trigger logic for metadata is off.");
-                    // En este punto, el usuario está creado, el perfil base existe.
-                    // El usuario deberá confirmar email y luego el login se podrá corregir/establecer en el primer SignIn.
+                    Debug.WriteLine($"WARNING: Profile login is '{createdProfile.Login}', but expected '{login}' from metadata.");
                 }
                 else
                 {
@@ -226,7 +281,7 @@ namespace shlauncher.Services
                     !string.IsNullOrEmpty(userLogin))
                 {
                     string accessToken = Unprotect(protectedAccessToken);
-                    string refreshTokenString = Unprotect(protectedRefreshToken); // Ya no es string.Empty si está protegido
+                    string refreshTokenString = Unprotect(protectedRefreshToken);
 
                     var session = await _supabaseService.Client.Auth.SetSession(accessToken, refreshTokenString, false);
 
@@ -238,6 +293,9 @@ namespace shlauncher.Services
                             RememberUser(session.AccessToken, session.RefreshToken, session.User.Id, userLogin);
                             Debug.WriteLine("Refreshed tokens saved.");
                         }
+
+                        ScheduleTokenRefresh(session);
+
                         Models.Profile? profileData = await _supabaseService.GetUserProfile(userIdGuid);
                         return (session, profileData);
                     }
@@ -285,6 +343,7 @@ namespace shlauncher.Services
             Properties.Settings.Default.RememberedUsername = string.Empty;
             Properties.Settings.Default.Save();
             Debug.WriteLine("Cleared remembered user data.");
+            _sessionRefreshTimer?.Dispose();
         }
 
         private string Protect(string data)

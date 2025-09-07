@@ -1,4 +1,6 @@
 ﻿using Wpf.Ui.Appearance;
+using Wpf.Ui.Animations;
+using Wpf.Ui.Controls;
 
 namespace shlauncher.Views.Windows
 {
@@ -35,18 +37,17 @@ namespace shlauncher.Views.Windows
 
         public void SetServiceProvider(IServiceProvider serviceProvider)
         {
-            // This method is part of the interface.
-            // WPF UI's default NavigationWindow implementation might use this
-            // internally if needed, or it's for extensibility.
-            // For now, a basic implementation or even throwing NotImplementedException
-            // if you don't directly use it. However, to satisfy the interface:
-            // RootNavigation.SetServiceProvider(serviceProvider); // This line might not be needed if SetPageProviderService is used
         }
 
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
             System.Windows.Application.Current.Shutdown();
+        }
+
+        private void RootNavigation_OnNavigated(NavigationView sender, NavigatedEventArgs args)
+        {
+            TransitionAnimationProvider.ApplyTransition(args.Page, Transition.FadeInWithSlide, 200);
         }
     }
 }

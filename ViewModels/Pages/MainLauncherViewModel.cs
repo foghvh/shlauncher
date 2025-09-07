@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
-using shlauncher.Models; // Para Profile
+using shlauncher.Models;
 
 namespace shlauncher.ViewModels.Pages
 {
@@ -63,7 +63,7 @@ namespace shlauncher.ViewModels.Pages
         {
             _mainWindowViewModel.IsGlobalLoading = true;
             LoadUserDataAndLicense();
-            if (_sessionService.IsUserLoggedIn) // Solo cargar logs y versión si está logueado
+            if (_sessionService.IsUserLoggedIn)
             {
                 await FetchAndUpdateLogs();
                 await CheckVersion();
@@ -83,7 +83,7 @@ namespace shlauncher.ViewModels.Pages
                 }
                 else
                 {
-                    UserLogin = "User"; // Fallback si el login es nulo/vacío en el perfil
+                    UserLogin = "User";
                     UserAvatarFallback = "U";
                 }
                 LicenseType = _sessionService.CurrentProfile.IsBuyer ? "Buyer" : "N/A";
@@ -93,7 +93,7 @@ namespace shlauncher.ViewModels.Pages
                 UserLogin = "Guest";
                 UserAvatarFallback = "G";
                 LicenseType = "N/A";
-                _navigationService.Navigate(typeof(Views.Pages.WelcomePage)); // Si no hay sesión, volver a Welcome
+                _navigationService.Navigate(typeof(Views.Pages.WelcomePage));
             }
         }
 
@@ -208,7 +208,7 @@ namespace shlauncher.ViewModels.Pages
             IsPlayButtonEnabled = false;
             _mainWindowViewModel.IsGlobalLoading = true;
 
-            string? currentPipeToken = _sessionService.PipeToken; // Usar el AccessToken de la sesión de Supabase
+            string? currentPipeToken = _sessionService.PipeToken;
 
             if (string.IsNullOrEmpty(currentPipeToken))
             {
@@ -245,8 +245,8 @@ namespace shlauncher.ViewModels.Pages
                     if (solutionDir != null)
                     {
                         string skinHunterProjectDirName = "skinhunter";
-                        string targetFrameworkName = currentDirInfo.Name; // e.g., net9.0-windows
-                        string configurationName = currentDirInfo.Parent?.Name ?? "Debug"; // e.g., Debug
+                        string targetFrameworkName = currentDirInfo.Name;
+                        string configurationName = currentDirInfo.Parent?.Name ?? "Debug";
                         string devMainAppPath = Path.Combine(solutionDir.FullName, skinHunterProjectDirName, "bin", configurationName, targetFrameworkName, mainAppExecutableName);
                         if (File.Exists(devMainAppPath))
                         {
@@ -295,7 +295,7 @@ namespace shlauncher.ViewModels.Pages
                     Debug.WriteLine($"[MainLauncherViewModel.Play.TaskRun] Launched {Path.GetFileName(mainAppPath)} with PID: {skinhunterProcess.Id} and pipe: {pipeName}");
 
                     bool tokenSentSuccessfully;
-                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20))) // Aumentar timeout si es necesario
+                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
                     {
                         try
                         {
@@ -350,7 +350,7 @@ namespace shlauncher.ViewModels.Pages
         }
 
         [RelayCommand]
-        private async Task Logout() // Hacerlo async para SignOutAsync
+        private async Task Logout()
         {
             _mainWindowViewModel.IsGlobalLoading = true;
             try
@@ -362,7 +362,7 @@ namespace shlauncher.ViewModels.Pages
                 Debug.WriteLine($"Error during Supabase SignOut: {ex.Message}");
             }
             _sessionService.ClearCurrentUser();
-            _authService.ClearRememberedUser(); // Asegurarse de limpiar los tokens guardados
+            _authService.ClearRememberedUser();
             _navigationService.Navigate(typeof(Views.Pages.WelcomePage));
             _mainWindowViewModel.IsGlobalLoading = false;
         }

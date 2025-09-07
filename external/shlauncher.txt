@@ -1,0 +1,2971 @@
+//-==================== START OF FILE: App.xaml ====================-//
+
+﻿<Application
+    x:Class="shlauncher.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    DispatcherUnhandledException="OnDispatcherUnhandledException"
+    Exit="OnExit"
+    Startup="OnStartup">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Dark" />
+                <ui:ControlsDictionary />
+                <ResourceDictionary Source="Resources/LauncherSpecificStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
+
+//-==================== END OF FILE: App.xaml ====================-//
+
+//-==================== START OF FILE: App.xaml.cs ====================-//
+
+﻿using System.IO;
+using System.Windows.Threading;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using System.Diagnostics;
+using Supabase.Gotrue; // Para Session
+
+namespace shlauncher
+{
+    public partial class App
+    {
+        private static readonly IHost _host = Host
+            .CreateDefaultBuilder()
+            .ConfigureAppConfiguration(c => {
+                string? basePath = Path.GetDirectoryName(AppContext.BaseDirectory);
+                if (!string.IsNullOrEmpty(basePath))
+                {
+                    c.SetBasePath(basePath);
+                }
+            })
+            .ConfigureServices((context, services) =>
+            {
+                services.AddNavigationViewPageProvider();
+                services.AddHostedService<ApplicationHostService>();
+                services.AddSingleton<IThemeService, ThemeService>();
+                services.AddSingleton<ITaskBarService, TaskBarService>();
+                services.AddSingleton<INavigationService, NavigationService>();
+                services.AddSingleton<INavigationWindow, MainWindow>();
+                services.AddSingleton<MainWindowViewModel>();
+                services.AddSingleton<SupabaseService>();
+                services.AddSingleton<AuthService>();
+                services.AddSingleton<CurrentUserSessionService>();
+                services.AddTransient<PipeServerService>();
+                services.AddTransient<WelcomeViewModel>();
+                services.AddTransient<SignInViewModel>();
+                services.AddTransient<SignUpViewModel>(); // Añadir SignUpViewModel
+                services.AddTransient<LoadingViewModel>();
+                services.AddTransient<MainLauncherViewModel>();
+                services.AddSingleton<SettingsViewModel>();
+                services.AddTransient<WelcomePage>();
+                services.AddTransient<SignInPage>();
+                services.AddTransient<SignUpPage>(); // Añadir SignUpPage
+                services.AddTransient<LoadingPage>();
+                services.AddTransient<MainLauncherPage>();
+                services.AddSingleton<SettingsPage>();
+            }).Build();
+
+        public static IServiceProvider Services => _host.Services;
+
+        private async void OnStartup(object sender, StartupEventArgs e)
+        {
+            await _host.StartAsync();
+
+            var supabaseService = Services.GetRequiredService<SupabaseService>();
+            await supabaseService.InitializeAsync(); // Asegura que el cliente Supabase esté listo
+
+            // Obtener AuthService para activar la suscripción a eventos de refresco.
+            var authService = Services.GetRequiredService<AuthService>();
+            var sessionService = Services.GetRequiredService<CurrentUserSessionService>();
+
+            // Intenta restaurar la sesión del usuario recordado
+            var (rememberedSession, rememberedProfile) = await authService.GetRememberedUserSessionAsync();
+
+            if (rememberedSession?.User?.Id != null && rememberedProfile != null)
+            {
+                sessionService.SetCurrentUser(rememberedProfile, rememberedSession);
+                Debug.WriteLine($"User {rememberedProfile.Login} session restored from remembered data.");
+                // El ApplicationHostService navegará a MainLauncherPage si está logueado
+            }
+            else
+            {
+                Debug.WriteLine("No valid remembered user session found or profile missing.");
+                authService.ClearRememberedUser(); // Limpia si los datos no son válidos o están incompletos
+                // El ApplicationHostService navegará a WelcomePage
+            }
+        }
+
+        private async void OnExit(object sender, ExitEventArgs e)
+        {
+            await _host.StopAsync();
+            _host.Dispose();
+        }
+
+        private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            Debug.WriteLine($"Unhandled exception: {e.Exception}");
+            // Podrías mostrar un MessageBox aquí si lo deseas
+            // e.Handled = true; // Descomenta si quieres evitar que la aplicación se cierre
+        }
+    }
+}
+
+
+//-==================== END OF FILE: App.xaml.cs ====================-//
+
+//-==================== START OF FILE: AssemblyInfo.cs ====================-//
+
+using System.Windows;
+
+[assembly: ThemeInfo(
+    ResourceDictionaryLocation.None,
+    ResourceDictionaryLocation.SourceAssembly
+)]
+
+//-==================== END OF FILE: AssemblyInfo.cs ====================-//
+
+//-==================== START OF FILE: Converters\BooleanToVisibilityConverter.cs ====================-//
+
+﻿using System;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Data;
+
+namespace shlauncher.Converters
+{
+    [ValueConversion(typeof(bool), typeof(Visibility))]
+    public class BooleanToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            bool flag = false;
+            if (value is bool bValue)
+            {
+                flag = bValue;
+            }
+
+            bool inverse = false;
+            if (parameter is string paramString)
+            {
+                bool.TryParse(paramString, out inverse);
+            }
+            else if (parameter is bool boolParam)
+            {
+                inverse = boolParam;
+            }
+
+
+            if (inverse)
+            {
+                return !flag ? Visibility.Visible : Visibility.Collapsed;
+            }
+            return flag ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            bool inverse = false;
+            if (parameter is string paramString)
+            {
+                bool.TryParse(paramString, out inverse);
+            }
+            else if (parameter is bool boolParam)
+            {
+                inverse = boolParam;
+            }
+
+            bool flag = (value is Visibility v) && v == Visibility.Visible;
+
+            if (inverse)
+            {
+                return !flag;
+            }
+            return flag;
+        }
+    }
+}
+
+//-==================== END OF FILE: Converters\BooleanToVisibilityConverter.cs ====================-//
+
+//-==================== START OF FILE: Converters\ColorBrightnessConverter.cs ====================-//
+
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Media;
+
+namespace shlauncher.Converters
+{
+    public class ColorBrightnessConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is SolidColorBrush originalBrush)
+            {
+                Color originalColor = originalBrush.Color;
+                float factor = 1.0f;
+                if (parameter != null && float.TryParse(parameter.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out float parsedFactor))
+                {
+                    factor = parsedFactor;
+                }
+
+                byte r = (byte)Math.Max(0, Math.Min(255, originalColor.R * factor));
+                byte g = (byte)Math.Max(0, Math.Min(255, originalColor.G * factor));
+                byte b = (byte)Math.Max(0, Math.Min(255, originalColor.B * factor));
+
+                return new SolidColorBrush(Color.FromArgb(originalColor.A, r, g, b));
+            }
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+//-==================== END OF FILE: Converters\ColorBrightnessConverter.cs ====================-//
+
+//-==================== START OF FILE: Converters\StringIsNullOrEmptyConverter.cs ====================-//
+
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+
+namespace shlauncher.Converters
+{
+    public class StringIsNullOrEmptyConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return string.IsNullOrEmpty(value as string);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+}
+
+//-==================== END OF FILE: Converters\StringIsNullOrEmptyConverter.cs ====================-//
+
+//-==================== START OF FILE: Converters\VersionStatusToColorConverter.cs ====================-//
+
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Media;
+
+namespace shlauncher.Converters
+{
+    public class VersionStatusToColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string status)
+            {
+                return status.ToUpperInvariant() switch
+                {
+                    "UPDATED" => Brushes.LightGreen,
+                    "OUTDATED" => Brushes.OrangeRed,
+                    "CHECKING..." => Brushes.LightSkyBlue,
+                    "ERROR" => Brushes.Red,
+                    "LOCAL N/A" => Brushes.Yellow,
+                    "LOCAL ERROR" => Brushes.Orange,
+                    "UNKNOWN" => Brushes.LightGray,
+                    "DB ERROR" => Brushes.MediumVioletRed,
+                    _ => Brushes.White,
+                };
+            }
+            return Brushes.White;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+//-==================== END OF FILE: Converters\VersionStatusToColorConverter.cs ====================-//
+
+//-==================== START OF FILE: Helpers\EnumToBooleanConverter.cs ====================-//
+
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+using Wpf.Ui.Appearance;
+
+namespace shlauncher.Helpers
+{
+    public class EnumToBooleanConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (parameter is not String enumString)
+            {
+                throw new ArgumentException("Parameter must be an enum name string.");
+            }
+
+            if (value == null || !Enum.IsDefined(value.GetType(), value))
+            {
+                // Or handle as appropriate, perhaps return false or throw
+                // Depending on if value can be null or not a valid enum member
+                return false;
+            }
+
+            // Ensure the parameter string can be parsed to the type of 'value'
+            try
+            {
+                var enumValueFromParameter = Enum.Parse(value.GetType(), enumString);
+                return enumValueFromParameter.Equals(value);
+            }
+            catch (ArgumentException) // Parameter string is not a member of the enum
+            {
+                return false;
+            }
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (parameter is not String enumString)
+            {
+                throw new ArgumentException("Parameter must be an enum name string.");
+            }
+            // targetType here is the Enum type itself
+            return Enum.Parse(targetType, enumString);
+        }
+    }
+}
+
+//-==================== END OF FILE: Helpers\EnumToBooleanConverter.cs ====================-//
+
+//-==================== START OF FILE: Models\AppConfig.cs ====================-//
+
+﻿namespace shlauncher.Models
+{
+    public class AppConfig
+    {
+        public string? ConfigurationsFolder { get; set; }
+        public string? AppPropertiesFileName { get; set; }
+    }
+}
+
+//-==================== END OF FILE: Models\AppConfig.cs ====================-//
+
+//-==================== START OF FILE: Models\DataColor.cs ====================-//
+
+﻿using System.Windows.Media;
+
+namespace shlauncher.Models
+{
+    public struct DataColor
+    {
+        public Brush Color { get; set; }
+    }
+}
+
+
+//-==================== END OF FILE: Models\DataColor.cs ====================-//
+
+//-==================== START OF FILE: Models\Profile.cs ====================-//
+
+﻿using Postgrest.Models;
+using Postgrest.Attributes;
+using System;
+// Quitar: using System.Text.Json.Nodes;
+using System.Collections.Generic; // Para Dictionary
+
+namespace shlauncher.Models
+{
+    [Table("profiles")]
+    public class Profile : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public Guid Id { get; set; }
+
+        [Column("login")]
+        public string? Login { get; set; }
+
+        [Column("is_buyer")]
+        public bool IsBuyer { get; set; }
+
+        [Column("avatar_id")]
+        public string? AvatarId { get; set; }
+
+        [Column("preferences")]
+        public Dictionary<string, object?>? Preferences { get; set; } // Cambiado aquí
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    // Modelo para las preferencias (ejemplo, se puede usar directamente en el diccionario)
+    public class UserPreferences
+    {
+        public string? Theme { get; set; }
+        // Otros campos de preferencias aquí
+    }
+}
+
+
+//-==================== END OF FILE: Models\Profile.cs ====================-//
+
+//-==================== START OF FILE: Models\SupabaseUpdateLog.cs ====================-//
+
+﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
+namespace shlauncher.Models
+{
+    public class SupabaseUpdateLogEntry
+    {
+        [JsonPropertyName("version")]
+        public string? Version { get; set; }
+
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("date")]
+        public string? Date { get; set; }
+
+        [JsonPropertyName("changes")]
+        public List<string>? Changes { get; set; }
+    }
+}
+
+//-==================== END OF FILE: Models\SupabaseUpdateLog.cs ====================-//
+
+//-==================== START OF FILE: Properties\Settings.Designer.cs ====================-//
+
+﻿//------------------------------------------------------------------------------
+// <auto-generated>
+//     This code was generated by a tool.
+//     Runtime Version:4.0.30319.42000
+//
+//     Changes to this file may cause incorrect behavior and will be lost if
+//     the code is regenerated.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+namespace shlauncher.Properties {
+    
+    
+    [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.13.0.0")]
+    internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
+        
+        private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
+        
+        public static Settings Default {
+            get {
+                return defaultInstance;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string RememberedToken {
+            get {
+                return ((string)(this["RememberedToken"]));
+            }
+            set {
+                this["RememberedToken"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string RememberedUsername {
+            get {
+                return ((string)(this["RememberedUsername"]));
+            }
+            set {
+                this["RememberedUsername"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string RememberedRefreshToken {
+            get {
+                return ((string)(this["RememberedRefreshToken"]));
+            }
+            set {
+                this["RememberedRefreshToken"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string RememberedUserId {
+            get {
+                return ((string)(this["RememberedUserId"]));
+            }
+            set {
+                this["RememberedUserId"] = value;
+            }
+        }
+    }
+}
+
+
+//-==================== END OF FILE: Properties\Settings.Designer.cs ====================-//
+
+//-==================== START OF FILE: Resources\LauncherSpecificStyles.xaml ====================-//
+
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:shlauncher.Converters">
+
+    <converters:StringIsNullOrEmptyConverter x:Key="StringIsNullOrEmptyConverter"/>
+    <converters:ColorBrightnessConverter x:Key="ColorBrightnessConverter"/>
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    <converters:VersionStatusToColorConverter x:Key="VersionStatusToColorConverter"/>
+
+</ResourceDictionary>
+
+//-==================== END OF FILE: Resources\LauncherSpecificStyles.xaml ====================-//
+
+//-==================== START OF FILE: Resources\Translations.cs ====================-//
+
+namespace shlauncher.Resources
+{
+    public partial class Translations
+    {
+    }
+}
+
+
+//-==================== END OF FILE: Resources\Translations.cs ====================-//
+
+//-==================== START OF FILE: Services\ApplicationHostService.cs ====================-//
+
+﻿using Microsoft.Extensions.Hosting;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace shlauncher.Services
+{
+    public class ApplicationHostService : IHostedService
+    {
+        private readonly IServiceProvider _serviceProvider;
+        private INavigationWindow? _navigationWindow;
+        private readonly CurrentUserSessionService _sessionService; // Para verificar estado de login
+
+        public ApplicationHostService(IServiceProvider serviceProvider, CurrentUserSessionService sessionService)
+        {
+            _serviceProvider = serviceProvider;
+            _sessionService = sessionService;
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            await HandleActivationAsync();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        private async Task HandleActivationAsync()
+        {
+            // La lógica de restauración de sesión ya está en App.OnStartup()
+            // Aquí solo mostramos la ventana y navegamos a la página inicial correcta.
+            if (!System.Windows.Application.Current.Windows.OfType<INavigationWindow>().Any())
+            {
+                _navigationWindow = _serviceProvider.GetService(typeof(INavigationWindow)) as INavigationWindow;
+                if (_navigationWindow != null)
+                {
+                    _navigationWindow.ShowWindow();
+                    if (_sessionService.IsUserLoggedIn)
+                    {
+                        _navigationWindow.Navigate(typeof(Views.Pages.MainLauncherPage));
+                    }
+                    else
+                    {
+                        _navigationWindow.Navigate(typeof(Views.Pages.WelcomePage));
+                    }
+                }
+            }
+            await Task.CompletedTask;
+        }
+    }
+}
+
+
+//-==================== END OF FILE: Services\ApplicationHostService.cs ====================-//
+
+//-==================== START OF FILE: Services\AuthService.cs ====================-//
+
+using System.Threading.Tasks;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Supabase.Gotrue;
+using shlauncher.Models;
+using System.Collections.Generic;
+using Postgrest.Responses;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace shlauncher.Services
+{
+    public class AuthService
+    {
+        private readonly SupabaseService _supabaseService;
+        private readonly PipeServerService _pipeServerService;
+        private readonly CurrentUserSessionService _currentUserSessionService;
+        private Timer? _sessionRefreshTimer;
+        private const string Entropy = "SHLAUNCHER_ENTROPY_V2_MORE_SECURE";
+
+        public AuthService(SupabaseService supabaseService)
+        {
+            _supabaseService = supabaseService;
+            // Resolver dependencias manualmente para evitar problemas de DI
+            _pipeServerService = App.Services.GetRequiredService<PipeServerService>();
+            _currentUserSessionService = App.Services.GetRequiredService<CurrentUserSessionService>();
+        }
+
+        private void ScheduleTokenRefresh(Session session)
+        {
+            _sessionRefreshTimer?.Dispose();
+
+            if (session.ExpiresIn <= 0) return;
+
+            var expiresIn = TimeSpan.FromSeconds(session.ExpiresIn);
+            var refreshTime = expiresIn.TotalMilliseconds * 0.9;
+
+            _sessionRefreshTimer = new Timer(async _ => await RefreshSessionAsync(), null, (int)refreshTime, Timeout.Infinite);
+            Debug.WriteLine($"[AuthService] Token refresh scheduled in {refreshTime / 1000} seconds.");
+        }
+
+        private async Task RefreshSessionAsync()
+        {
+            Debug.WriteLine("[AuthService] Attempting to refresh session...");
+            try
+            {
+                var newSession = await _supabaseService.Client.Auth.RefreshSession();
+                if (newSession != null && !string.IsNullOrEmpty(newSession.AccessToken))
+                {
+                    Debug.WriteLine("[AuthService] Session refreshed successfully.");
+                    var user = _currentUserSessionService.CurrentProfile;
+                    if (user != null && newSession.User != null)
+                    {
+                        RememberUser(newSession.AccessToken, newSession.RefreshToken, newSession.User.Id, user.Login);
+                        _currentUserSessionService.SetCurrentUser(user, newSession);
+
+                        await _pipeServerService.SendTokenAsync("skinhunter_pipe", newSession.AccessToken, CancellationToken.None);
+
+                        ScheduleTokenRefresh(newSession);
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("[AuthService] Failed to refresh session. Session object was null or token was empty.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AuthService] Exception during session refresh: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool Success, Session? Session, Models.Profile? ProfileData, string? ErrorMessage)> LoginAsync(string login, string password)
+        {
+            try
+            {
+                // 1. Llama a la función de la base de datos para obtener el email de forma segura
+                var userEmail = await _supabaseService.Client.Rpc("get_email_from_login", new { login_param = login });
+
+                if (userEmail == null || string.IsNullOrEmpty(userEmail.ToString()))
+                {
+                    return (false, null, null, "Login failed. User not found.");
+                }
+
+                // 2. Intenta iniciar sesión con el email y la contraseña
+                var session = await _supabaseService.Client.Auth.SignIn(userEmail.ToString(), password);
+
+                if (session?.User?.Id == null || string.IsNullOrEmpty(session.AccessToken))
+                {
+                    if (session?.User != null && session.User.ConfirmedAt == null)
+                    {
+                        return (false, null, null, "Login failed. Please confirm your email address first.");
+                    }
+                    return (false, null, null, "Login failed. Invalid credentials.");
+                }
+
+                ScheduleTokenRefresh(session);
+
+                string accessTokenShort = session.AccessToken?.Substring(0, Math.Min(session.AccessToken.Length, 10)) ?? "N/A";
+                Debug.WriteLine($"Login successful for user {session.User.Id}. Supabase Client CurrentUser: {_supabaseService.Client.Auth.CurrentUser?.Id}, Session AccessToken (short): {accessTokenShort}...");
+
+                Models.Profile? profileData = await _supabaseService.GetUserProfile(Guid.Parse(session.User.Id));
+                if (profileData == null && session.User != null)
+                {
+                    Debug.WriteLine($"Login successful for user {session.User.Id}, but profile data is missing. Attempting to create profile as fallback.");
+                    profileData = new Models.Profile
+                    {
+                        Id = Guid.Parse(session.User.Id),
+                        Login = session.User.Email?.Split('@')[0],
+                        Preferences = new Dictionary<string, object?> { ["theme"] = "dark" }
+                    };
+                    var createdProfile = await _supabaseService.InsertNewUserProfile(profileData);
+                    if (createdProfile == null) Debug.WriteLine($"Failed to create missing profile for user {session.User.Id} after login via fallback.");
+                    else profileData = createdProfile;
+                }
+                else if (profileData != null && string.IsNullOrEmpty(profileData.Login) && session.User != null && !string.IsNullOrEmpty(session.User.Email))
+                {
+                    Debug.WriteLine($"User {session.User.Id} logged in, profile exists but login is NULL/empty. Setting login from email part as fallback.");
+                    profileData.Login = session.User.Email.Split('@')[0];
+                    var updatedProfile = await _supabaseService.UpdateExistingUserProfile(profileData);
+                    if (updatedProfile != null) profileData = updatedProfile;
+                    else Debug.WriteLine($"Failed to update profile login for user {session.User.Id} after login via fallback.");
+                }
+
+                return (true, session, profileData, null);
+            }
+            catch (Supabase.Gotrue.Exceptions.GotrueException ex)
+            {
+                Debug.WriteLine($"Supabase Login exception: {ex.Message} (Reason: {ex.Reason})");
+                string friendlyMessage = "Login failed. ";
+                if (ex.Message.Contains("Invalid login credentials"))
+                {
+                    friendlyMessage += "Invalid email or password.";
+                }
+                else if (ex.Message.Contains("Email not confirmed") || ex.Message.Contains("awaiting verification"))
+                {
+                    friendlyMessage += "Please confirm your email address first.";
+                }
+                else
+                {
+                    friendlyMessage += "An error occurred with the authentication service.";
+                }
+                return (false, null, null, friendlyMessage);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Generic Login exception: {ex.Message}");
+                return (false, null, null, $"Login failed due to an unexpected error: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool Success, User? User, Models.Profile? ProfileData, string? ErrorMessage)> RegisterAsync(string email, string password, string login)
+        {
+            try
+            {
+                var existingProfileByLoginResponse = await _supabaseService.Client.From<Models.Profile>()
+                    .Filter("login", Postgrest.Constants.Operator.Equals, login)
+                    .Get();
+                if (existingProfileByLoginResponse.Models != null && existingProfileByLoginResponse.Models.Any())
+                {
+                    return (false, null, null, "This login is already taken. Please choose another one.");
+                }
+
+                Debug.WriteLine($"Attempting Auth.SignUp with Email: {email}, Login to be passed in metadata: {login}");
+                Session? session = null;
+                User? signedUpUser = null;
+
+                var signUpOptions = new SignUpOptions
+                {
+                    Data = new Dictionary<string, object>
+                    {
+                        { "login", login }
+                    }
+                };
+
+                try
+                {
+                    session = await _supabaseService.Client.Auth.SignUp(email, password, signUpOptions);
+                    signedUpUser = session?.User;
+                }
+                catch (Supabase.Gotrue.Exceptions.GotrueException gotrueEx)
+                {
+                    Debug.WriteLine($"Auth.SignUp EXCEPTION: {gotrueEx.Message} (Reason: {gotrueEx.Reason})");
+                    throw;
+                }
+
+                Debug.WriteLine($"Auth.SignUp call completed.");
+                if (signedUpUser == null || string.IsNullOrEmpty(signedUpUser.Id))
+                {
+                    Debug.WriteLine("Auth.SignUp did not return a valid User object with an ID.");
+                    return (false, null, null, "Registration failed: Could not retrieve user details after sign-up attempt.");
+                }
+                string sessionAccessTokenShort = session?.AccessToken?.Substring(0, Math.Min(session.AccessToken?.Length ?? 0, 10)) ?? "N/A";
+                Debug.WriteLine($"User object from SignUp: ID: {signedUpUser.Id}, Email: {signedUpUser.Email}, ConfirmedAt: {signedUpUser.ConfirmedAt}, Session AccessToken Present: {!string.IsNullOrEmpty(session?.AccessToken)} ({sessionAccessTokenShort})");
+
+                Models.Profile? createdProfile = await _supabaseService.GetUserProfile(Guid.Parse(signedUpUser.Id));
+
+                if (createdProfile == null)
+                {
+                    Debug.WriteLine($"WARNING: Profile for user {signedUpUser.Id} was NOT found after SignUp. Trigger failed critically. The user exists in auth.users but not in public.profiles.");
+                    return (true, signedUpUser, null, "Registration partially succeeded. Profile creation pending. Please try logging in after email confirmation, or contact support if issues persist.");
+                }
+
+                if (createdProfile.Login != login)
+                {
+                    Debug.WriteLine($"WARNING: Profile login is '{createdProfile.Login}', but expected '{login}' from metadata.");
+                }
+                else
+                {
+                    Debug.WriteLine($"Profile for user {signedUpUser.Id} found/created by trigger with login: '{createdProfile.Login}'.");
+                }
+
+                string successMessage = "Registration successful! Please check your email to confirm your account.";
+                return (true, signedUpUser, createdProfile, successMessage);
+            }
+            catch (Supabase.Gotrue.Exceptions.GotrueException ex)
+            {
+                Debug.WriteLine($"Supabase Registration exception (outer catch): {ex.Message} (Reason: {ex.Reason})");
+                string friendlyMessage = "Registration failed. ";
+                if (ex.Message.Contains("User already registered"))
+                {
+                    friendlyMessage += "This email is already registered.";
+                }
+                else if (ex.Message.Contains("Password should be at least 6 characters"))
+                {
+                    friendlyMessage += "Password should be at least 6 characters.";
+                }
+                else if (ex.Message.Contains("Database error saving new user") || ex.Message.Contains("unexpected_failure"))
+                {
+                    friendlyMessage += "A database error occurred while creating your account. Please try again later or contact support.";
+                }
+                else
+                {
+                    friendlyMessage += "An error occurred with the authentication service: " + ex.Reason;
+                }
+                return (false, null, null, friendlyMessage);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Generic Registration exception: {ex.Message}. StackTrace: {ex.StackTrace}");
+                return (false, null, null, $"Registration failed due to an unexpected error: {ex.Message}");
+            }
+        }
+
+        public void RememberUser(string accessToken, string? refreshToken, string userId, string userLogin)
+        {
+            try
+            {
+                Properties.Settings.Default.RememberedToken = Protect(accessToken);
+                Properties.Settings.Default.RememberedRefreshToken = Protect(refreshToken ?? string.Empty);
+                Properties.Settings.Default.RememberedUserId = userId;
+                Properties.Settings.Default.RememberedUsername = userLogin;
+                Properties.Settings.Default.Save();
+                Debug.WriteLine($"User {userLogin} ({userId}) tokens remembered.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to remember user: {ex.Message}");
+            }
+        }
+
+        public async Task<(Session? Session, Models.Profile? ProfileData)> GetRememberedUserSessionAsync()
+        {
+            try
+            {
+                string? protectedAccessToken = Properties.Settings.Default.RememberedToken;
+                string? protectedRefreshToken = Properties.Settings.Default.RememberedRefreshToken;
+                string? userIdString = Properties.Settings.Default.RememberedUserId;
+                string? userLogin = Properties.Settings.Default.RememberedUsername;
+
+                if (!string.IsNullOrEmpty(protectedAccessToken) &&
+                    protectedRefreshToken != null &&
+                    !string.IsNullOrEmpty(userIdString) &&
+                    !string.IsNullOrEmpty(userLogin))
+                {
+                    string accessToken = Unprotect(protectedAccessToken);
+                    string refreshTokenString = Unprotect(protectedRefreshToken);
+
+                    var session = await _supabaseService.Client.Auth.SetSession(accessToken, refreshTokenString, false);
+
+                    if (session?.User?.Id != null && !string.IsNullOrEmpty(session.AccessToken) && Guid.TryParse(userIdString, out Guid userIdGuid))
+                    {
+                        Debug.WriteLine($"Session potentially restored/refreshed for user ID {session.User.Id} via remembered tokens.");
+                        if (session.AccessToken != accessToken || (session.RefreshToken != null && session.RefreshToken != refreshTokenString && !string.IsNullOrEmpty(session.RefreshToken)))
+                        {
+                            RememberUser(session.AccessToken, session.RefreshToken, session.User.Id, userLogin);
+                            Debug.WriteLine("Refreshed tokens saved.");
+                        }
+
+                        ScheduleTokenRefresh(session);
+
+                        Models.Profile? profileData = await _supabaseService.GetUserProfile(userIdGuid);
+                        return (session, profileData);
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Failed to restore session from remembered tokens (SetSession returned null or invalid session/userId). Clearing remembered data.");
+                        ClearRememberedUser();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to get remembered user session: {ex.Message}. Clearing remembered data.");
+                ClearRememberedUser();
+            }
+            return (null, null);
+        }
+
+        public ClaimsPrincipal? ValidateSupabaseAccessToken(string accessToken)
+        {
+            if (string.IsNullOrEmpty(accessToken)) return null;
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                if (tokenHandler.CanReadToken(accessToken))
+                {
+                    var jwtToken = tokenHandler.ReadJwtToken(accessToken);
+                    var claimsIdentity = new ClaimsIdentity(jwtToken.Claims, "SupabaseJWT");
+                    return new ClaimsPrincipal(claimsIdentity);
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error reading Supabase access token (not validating signature): {ex.Message}");
+                return null;
+            }
+        }
+
+        public void ClearRememberedUser()
+        {
+            Properties.Settings.Default.RememberedToken = string.Empty;
+            Properties.Settings.Default.RememberedRefreshToken = string.Empty;
+            Properties.Settings.Default.RememberedUserId = string.Empty;
+            Properties.Settings.Default.RememberedUsername = string.Empty;
+            Properties.Settings.Default.Save();
+            Debug.WriteLine("Cleared remembered user data.");
+            _sessionRefreshTimer?.Dispose();
+        }
+
+        private string Protect(string data)
+        {
+            if (string.IsNullOrEmpty(data)) return string.Empty;
+            byte[] dataBytes = Encoding.UTF8.GetBytes(data);
+            byte[] entropyBytes = Encoding.UTF8.GetBytes(Entropy);
+            byte[] protectedData = ProtectedData.Protect(dataBytes, entropyBytes, DataProtectionScope.CurrentUser);
+            return Convert.ToBase64String(protectedData);
+        }
+
+        private string Unprotect(string protectedData)
+        {
+            if (string.IsNullOrEmpty(protectedData)) return string.Empty;
+            byte[] protectedDataBytes = Convert.FromBase64String(protectedData);
+            byte[] entropyBytes = Encoding.UTF8.GetBytes(Entropy);
+            byte[] dataBytes = ProtectedData.Unprotect(protectedDataBytes, entropyBytes, DataProtectionScope.CurrentUser);
+            return Encoding.UTF8.GetString(dataBytes);
+        }
+    }
+}
+
+//-==================== END OF FILE: Services\AuthService.cs ====================-//
+
+//-==================== START OF FILE: Services\CurrentUserSessionService.cs ====================-//
+
+﻿
+using shlauncher.Models; // Para Profile
+using Supabase.Gotrue; // Para Session
+
+namespace shlauncher.Services
+{
+    public partial class CurrentUserSessionService : ObservableObject
+    {
+        [ObservableProperty]
+        private Models.Profile? _currentProfile;
+
+        [ObservableProperty]
+        private Session? _currentSupabaseSession; // Almacenar la sesión de Supabase
+
+        public bool IsUserLoggedIn => CurrentProfile != null && CurrentSupabaseSession?.User != null && !string.IsNullOrEmpty(CurrentSupabaseSession.AccessToken);
+
+        // El AccessToken para el pipe
+        public string? PipeToken => CurrentSupabaseSession?.AccessToken;
+
+        public void SetCurrentUser(Models.Profile profile, Session supabaseSession)
+        {
+            CurrentProfile = profile;
+            CurrentSupabaseSession = supabaseSession;
+            OnPropertyChanged(nameof(IsUserLoggedIn));
+            OnPropertyChanged(nameof(PipeToken));
+        }
+
+        public void ClearCurrentUser()
+        {
+            CurrentProfile = null;
+            CurrentSupabaseSession = null;
+            // También podrías llamar a _supabaseService.Client.Auth.SignOut() aquí si quieres invalidar la sesión en Supabase.
+            OnPropertyChanged(nameof(IsUserLoggedIn));
+            OnPropertyChanged(nameof(PipeToken));
+        }
+    }
+}
+
+
+//-==================== END OF FILE: Services\CurrentUserSessionService.cs ====================-//
+
+//-==================== START OF FILE: Services\PipeServerService.cs ====================-//
+
+﻿using System.Threading.Tasks;
+using System.Security.Principal;
+using System.Diagnostics;
+using System.IO.Pipes;
+using System.IO;
+using System.Text;
+using System.Threading;
+
+namespace shlauncher.Services
+{
+    public class PipeServerService
+    {
+        public const string RequestTokenCommand = "GET_TOKEN";
+        public const string TokenPrefix = "TOKEN:";
+        public const string ErrorPrefix = "ERROR:";
+        public const string AckCommand = "TOKEN_RECEIVED_ACK";
+        public const string EndOfMessage = "\n"; // Cliente usa ReadLineAsync, así que necesita esto
+
+        public async Task<bool> SendTokenAsync(string pipeName, string tokenToSend, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(pipeName) || string.IsNullOrEmpty(tokenToSend))
+            {
+                Debug.WriteLine("[PipeServerService] Pipe name or token is null or empty.");
+                return false;
+            }
+
+            NamedPipeServerStream? serverStream = null;
+            try
+            {
+                Debug.WriteLine($"[PipeServerService] Starting pipe server on: {pipeName}");
+                serverStream = new NamedPipeServerStream(
+                    pipeName,
+                    PipeDirection.InOut,
+                    1, // MaxNumberOfServerInstances
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+
+                Debug.WriteLine("[PipeServerService] Waiting for connection...");
+                await serverStream.WaitForConnectionAsync(cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    Debug.WriteLine("[PipeServerService] Connection cancelled before client connected.");
+                    serverStream.Dispose();
+                    return false;
+                }
+                Debug.WriteLine("[PipeServerService] Client connected.");
+
+                // Usar leaveOpen: false para que los writers/readers se dispongan con el stream
+                await using var writer = new StreamWriter(serverStream, Encoding.UTF8, bufferSize: 1024, leaveOpen: true) { AutoFlush = false }; // AutoFlush false
+                using var reader = new StreamReader(serverStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+
+                string? clientRequest = await reader.ReadLineAsync(cancellationToken);
+                Debug.WriteLine($"[PipeServerService] Received from client: {clientRequest}");
+
+                if (cancellationToken.IsCancellationRequested) return false;
+
+                if (clientRequest == RequestTokenCommand)
+                {
+                    Debug.WriteLine($"[PipeServerService] Sending token to client: {tokenToSend.Substring(0, Math.Min(tokenToSend.Length, 20))}...");
+                    await writer.WriteAsync($"{TokenPrefix}{tokenToSend}{EndOfMessage}");
+                    await writer.FlushAsync(cancellationToken); // Flush explícito
+                    Debug.WriteLine($"[PipeServerService] Token sent and flushed. Waiting for ACK from client...");
+
+                    string? ackResponse = await reader.ReadLineAsync(cancellationToken);
+                    Debug.WriteLine($"[PipeServerService] Received ACK from client: {ackResponse}");
+                    if (cancellationToken.IsCancellationRequested) return false;
+
+                    if (ackResponse == AckCommand)
+                    {
+                        Debug.WriteLine("[PipeServerService] ACK received. Token exchange successful.");
+                        return true;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"[PipeServerService] Invalid or missing ACK from client: {ackResponse}. Token exchange failed.");
+                        return false;
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"[PipeServerService] Invalid request from client: {clientRequest}");
+                    await writer.WriteAsync($"{ErrorPrefix}Invalid request.{EndOfMessage}");
+                    await writer.FlushAsync(cancellationToken); // Flush explícito
+                    return false;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("[PipeServerService] Operation cancelled.");
+                return false;
+            }
+            catch (IOException ex)
+            {
+                Debug.WriteLine($"[PipeServerService] IOException: {ex.Message}. Pipe may have been closed or broken.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PipeServerService] Unexpected error: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                if (serverStream != null)
+                {
+                    if (serverStream.IsConnected)
+                    {
+                        // serverStream.Disconnect(); // Desconectar antes de Dispose si sigue conectado, aunque Dispose debería manejarlo.
+                    }
+                    await serverStream.DisposeAsync();
+                }
+                Debug.WriteLine($"[PipeServerService] Server for pipe {pipeName} is shutting down.");
+            }
+        }
+    }
+}
+
+
+//-==================== END OF FILE: Services\PipeServerService.cs ====================-//
+
+//-==================== START OF FILE: Services\SupabaseService.cs ====================-//
+
+﻿using Supabase;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using Client = Supabase.Client;
+using Supabase.Gotrue;
+using System.Text.Json;
+using System.Net.Http;
+using System;
+using System.Diagnostics;
+using shlauncher.Models;
+using Postgrest.Responses;
+using Postgrest.Models;
+using Postgrest;
+using System.Net;
+
+namespace shlauncher.Services
+{
+    public class SupabaseService
+    {
+        private readonly Client _supabase;
+        private readonly HttpClient _httpClient;
+
+        private const string SupabaseUrl = "https://odlqwkgewzxxmbsqutja.supabase.co";
+        private const string SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbHF3a2dld3p4eG1ic3F1dGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQyMTM2NzcsImV4cCI6MjA0OTc4OTY3N30.qka6a71bavDeUQgy_BKoVavaClRQa_gT36Au7oO9AF0";
+
+        public Client Client => _supabase;
+
+        public SupabaseService()
+        {
+            var options = new SupabaseOptions
+            {
+                AutoRefreshToken = true,
+                AutoConnectRealtime = true,
+            };
+            _supabase = new Client(SupabaseUrl, SupabaseAnonKey, options);
+            _httpClient = new HttpClient();
+        }
+
+        public async Task InitializeAsync()
+        {
+            await _supabase.InitializeAsync();
+            Debug.WriteLine($"Supabase initialized. Current User: {_supabase.Auth.CurrentUser?.Email}");
+        }
+
+        public async Task<Models.Profile?> GetUserProfile(Guid userId)
+        {
+            try
+            {
+                var response = await _supabase.From<Models.Profile>()
+                                          .Filter("id", Postgrest.Constants.Operator.Equals, userId.ToString())
+                                          .Single();
+                return response;
+            }
+            catch (Postgrest.Exceptions.PostgrestException pgEx) when (pgEx.Message.Contains("JSON object requested, multiple (or no) rows returned") || pgEx.Content?.Contains("PGRST116") == true)
+            {
+                Debug.WriteLine($"GetUserProfile for {userId}: No profile found. Message: {pgEx.Message}, StatusCode: {pgEx.StatusCode}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error fetching user profile for {userId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<Models.Profile?> InsertNewUserProfile(Models.Profile profileData)
+        {
+            try
+            {
+                ModeledResponse<Models.Profile> response = await _supabase.From<Models.Profile>()
+                                                                   .Insert(profileData);
+
+                if (response.ResponseMessage != null && response.ResponseMessage.IsSuccessStatusCode)
+                {
+                    if (response.Models != null && response.Models.Any())
+                    {
+                        Debug.WriteLine($"Profile inserted successfully (model returned) for ID: {response.Models.First().Id}, Login: {response.Models.First().Login}");
+                        return response.Models.First();
+                    }
+                    // Si la inserción fue exitosa pero no devolvió el modelo, lo volvemos a obtener.
+                    Debug.WriteLine($"Profile insert HTTP call successful for ID: {profileData.Id}, but no model returned in response. Fetching again.");
+                    return await GetUserProfile(profileData.Id);
+                }
+                Debug.WriteLine($"Failed to insert new profile. HttpStatusCode: {response.ResponseMessage?.StatusCode}, Content: {response.Content}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error inserting new profile for {profileData.Id}: {ex.Message}");
+                if (ex is Postgrest.Exceptions.PostgrestException pgEx) { Debug.WriteLine($"PostgrestDetails: {pgEx.Content}, StatusCode: {pgEx.StatusCode}"); }
+                return null;
+            }
+        }
+
+        public async Task<Models.Profile?> UpdateExistingUserProfile(Models.Profile profileData)
+        {
+            try
+            {
+                ModeledResponse<Models.Profile> response = await _supabase.From<Models.Profile>()
+                                                                   .Where(x => x.Id == profileData.Id)
+                                                                   .Update(profileData);
+
+                if (response.ResponseMessage != null && response.ResponseMessage.IsSuccessStatusCode)
+                {
+                    if (response.Models != null && response.Models.Any())
+                    {
+                        Debug.WriteLine($"Profile updated successfully (model returned) for ID: {response.Models.First().Id}, New Login: {response.Models.First().Login}");
+                        return response.Models.First();
+                    }
+                    Debug.WriteLine($"Update HTTP call was success for ID: {profileData.Id}, but no model returned in response. Fetching profile again.");
+                    return await GetUserProfile(profileData.Id);
+                }
+                Debug.WriteLine($"Failed to update profile. HttpStatusCode: {response.ResponseMessage?.StatusCode}, Content: {response.Content}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating profile for {profileData.Id}: {ex.Message}");
+                if (ex is Postgrest.Exceptions.PostgrestException pgEx) { Debug.WriteLine($"PostgrestDetails: {pgEx.Content}, StatusCode: {pgEx.StatusCode}"); }
+                return null;
+            }
+        }
+
+        public async Task<byte[]?> DownloadFileBytesAsync(string bucketName, string filePathInBucket)
+        {
+            try
+            {
+                string storageUrlPart = "/storage/v1";
+                string baseUrl = SupabaseUrl.EndsWith(storageUrlPart) ? SupabaseUrl : SupabaseUrl + storageUrlPart;
+                string publicUrl = $"{baseUrl}/object/public/{bucketName}/{filePathInBucket}";
+                publicUrl = publicUrl.Replace("//object", "/object");
+
+                HttpResponseMessage response = await _httpClient.GetAsync(publicUrl);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorContent = await response.Content.ReadAsStringAsync();
+                    Debug.WriteLine($"Error downloading file from Supabase Storage. Status: {response.StatusCode}, Reason: {response.ReasonPhrase}, Content: {errorContent} (URL: {publicUrl})");
+                    return null;
+                }
+                return await response.Content.ReadAsByteArrayAsync();
+            }
+            catch (HttpRequestException ex)
+            {
+                Debug.WriteLine($"HttpRequestException downloading file from Supabase Storage: {ex.Message} (URL: {bucketName}/{filePathInBucket})");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Generic error downloading file {bucketName}/{filePathInBucket}: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<List<Models.SupabaseUpdateLogEntry>?> GetUpdateLogsAsync()
+        {
+            string bucketName = "version";
+            string filePathInBucket = "updates.json";
+            try
+            {
+                byte[]? fileBytes = await DownloadFileBytesAsync(bucketName, filePathInBucket);
+                if (fileBytes == null || fileBytes.Length == 0)
+                {
+                    Debug.WriteLine($"Supabase {filePathInBucket} not found or is empty in bucket '{bucketName}'.");
+                    return null;
+                }
+                string jsonContent = System.Text.Encoding.UTF8.GetString(fileBytes);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return JsonSerializer.Deserialize<List<Models.SupabaseUpdateLogEntry>>(jsonContent, options);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error fetching/parsing Supabase {filePathInBucket}: {ex.Message}");
+                return null;
+            }
+        }
+    }
+}
+
+
+//-==================== END OF FILE: Services\SupabaseService.cs ====================-//
+
+//-==================== START OF FILE: shlauncher.csproj ====================-//
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net9.0-windows</TargetFramework>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<ApplicationIcon>Assets/icon.ico</ApplicationIcon>
+		<!-- Changed from wpfui-icon.ico -->
+		<UseWPF>true</UseWPF>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<RootNamespace>shlauncher</RootNamespace>
+		<AssemblyName>shlauncher</AssemblyName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Content Include="Assets\icon.ico">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<!-- Make sure this icon file exists -->
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="WPF-UI" Version="4.0.2" />
+		<PackageReference Include="WPF-UI.DependencyInjection" Version="4.0.2" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.1" />
+		<!-- Original was 9.0.0, template has 9.0.1 -->
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<!-- Original was 8.2.2, template has 8.4.0 -->
+		<PackageReference Include="supabase-csharp" Version="0.16.2" />
+		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.1" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.5.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove="Assets\wpfui-icon-256.png" />
+		<None Remove="Assets\wpfui-icon-1024.png" />
+		<None Remove="Assets\Dongle-Regular.ttf" />
+		<None Remove="Assets\launcher_banner.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Resource Include="Assets\Dongle-Regular.ttf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Assets\launcher_banner.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Update="Properties\Settings.Designer.cs">
+	    <DesignTimeSharedInput>True</DesignTimeSharedInput>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Settings.settings</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
+
+</Project>
+
+//-==================== END OF FILE: shlauncher.csproj ====================-//
+
+//-==================== START OF FILE: shlauncher.sln ====================-//
+
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "shlauncher", "shlauncher.csproj", "{E9095BB5-C864-466A-95A1-1066F73F884D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "skinhunter", "..\skinhunter\skinhunter.csproj", "{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E9095BB5-C864-466A-95A1-1066F73F884D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9095BB5-C864-466A-95A1-1066F73F884D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9095BB5-C864-466A-95A1-1066F73F884D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9095BB5-C864-466A-95A1-1066F73F884D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C89C7DD3-9DF3-2589-803D-59DE51D2E53B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C5888962-A937-4788-BC27-B5CEEF00A374}
+	EndGlobalSection
+EndGlobal
+
+
+//-==================== END OF FILE: shlauncher.sln ====================-//
+
+//-==================== START OF FILE: Usings.cs ====================-//
+
+﻿global using System;
+global using System.Windows;
+global using CommunityToolkit.Mvvm.ComponentModel;
+global using CommunityToolkit.Mvvm.Input;
+global using Microsoft.Extensions.DependencyInjection;
+global using shlauncher.Services;
+global using shlauncher.Models;
+global using shlauncher.ViewModels;
+global using shlauncher.ViewModels.Pages;
+global using shlauncher.ViewModels.Windows;
+global using shlauncher.Views.Pages;
+global using shlauncher.Views.Windows;
+global using Wpf.Ui;
+global using Wpf.Ui.Abstractions;
+global using Wpf.Ui.Abstractions.Controls;
+global using Wpf.Ui.Controls;
+global using Wpf.Ui.DependencyInjection;
+global using Wpf.Ui.Appearance;
+global using System.IO.Pipes; // Añadido
+global using System.Text;     // Añadido
+global using System.Diagnostics; // Ya debería estar por otros usos
+
+//-==================== END OF FILE: Usings.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\LauncherBaseViewModel.cs ====================-//
+
+﻿using System.Threading.Tasks;
+
+namespace shlauncher.ViewModels
+{
+    public abstract partial class LauncherBaseViewModel : ObservableObject, INavigationAware
+    {
+        [ObservableProperty]
+        private string _pageTitle = string.Empty;
+
+        public virtual Task OnNavigatedToAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public virtual Task OnNavigatedFromAsync()
+        {
+            return Task.CompletedTask;
+        }
+    }
+}
+
+//-==================== END OF FILE: ViewModels\LauncherBaseViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Pages\LoadingViewModel.cs ====================-//
+
+﻿using System.Threading.Tasks;
+
+namespace shlauncher.ViewModels.Pages
+{
+    public partial class LoadingViewModel : LauncherBaseViewModel // INavigationAware is inherited
+    {
+        private readonly INavigationService _navigationService;
+        private readonly MainWindowViewModel _mainWindowViewModel;
+
+        public LoadingViewModel(INavigationService navigationService, MainWindowViewModel mainWindowViewModel)
+        {
+            _navigationService = navigationService;
+            _mainWindowViewModel = mainWindowViewModel;
+            PageTitle = "Loading - SHLauncher";
+        }
+
+        public override async Task OnNavigatedToAsync() // Changed from (object? parameter = null)
+        {
+            _mainWindowViewModel.IsGlobalLoading = true;
+            await Task.Delay(1500);
+            _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage));
+            _mainWindowViewModel.IsGlobalLoading = false;
+            await base.OnNavigatedToAsync();
+        }
+    }
+}
+
+//-==================== END OF FILE: ViewModels\Pages\LoadingViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Pages\MainLauncherViewModel.cs ====================-//
+
+﻿using System.Collections.ObjectModel;
+using System.Threading.Tasks;
+using System.IO;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Text.Json;
+using System.Linq;
+using System.Collections.Generic;
+using System.Threading;
+using shlauncher.Models; // Para Profile
+
+namespace shlauncher.ViewModels.Pages
+{
+    public partial class MainLauncherViewModel : LauncherBaseViewModel
+    {
+        private readonly INavigationService _navigationService;
+        private readonly CurrentUserSessionService _sessionService;
+        private readonly SupabaseService _supabaseService;
+        private readonly HttpClient _httpClient;
+        private readonly MainWindowViewModel _mainWindowViewModel;
+        private readonly AuthService _authService;
+        private readonly PipeServerService _pipeServerService;
+
+        [ObservableProperty]
+        private bool _isPlayButtonEnabled = true;
+
+        [ObservableProperty]
+        private string? _userLogin;
+
+        [ObservableProperty]
+        private string? _userAvatarFallback;
+
+        [ObservableProperty]
+        private string _patchVersion = "Unknown";
+
+        [ObservableProperty]
+        private string _versionStatus = "Checking...";
+
+        [ObservableProperty]
+        private string _licenseType = "N/A";
+
+        public ObservableCollection<Models.SupabaseUpdateLogEntry> UpdateLogs { get; } = new();
+
+        public MainLauncherViewModel(
+            INavigationService navigationService,
+            CurrentUserSessionService sessionService,
+            SupabaseService supabaseService,
+            MainWindowViewModel mainWindowViewModel,
+            AuthService authService,
+            PipeServerService pipeServerService)
+        {
+            _navigationService = navigationService;
+            _sessionService = sessionService;
+            _supabaseService = supabaseService;
+            _mainWindowViewModel = mainWindowViewModel;
+            _authService = authService;
+            _pipeServerService = pipeServerService;
+            _httpClient = new HttpClient();
+            PageTitle = "Home - SHLauncher";
+        }
+
+        public override async Task OnNavigatedToAsync()
+        {
+            _mainWindowViewModel.IsGlobalLoading = true;
+            LoadUserDataAndLicense();
+            if (_sessionService.IsUserLoggedIn) // Solo cargar logs y versión si está logueado
+            {
+                await FetchAndUpdateLogs();
+                await CheckVersion();
+            }
+            _mainWindowViewModel.IsGlobalLoading = false;
+            await base.OnNavigatedToAsync();
+        }
+
+        private void LoadUserDataAndLicense()
+        {
+            if (_sessionService.IsUserLoggedIn && _sessionService.CurrentProfile != null)
+            {
+                UserLogin = _sessionService.CurrentProfile.Login;
+                if (!string.IsNullOrEmpty(UserLogin))
+                {
+                    UserAvatarFallback = UserLogin.Length > 0 ? UserLogin[0].ToString().ToUpper() : "U";
+                }
+                else
+                {
+                    UserLogin = "User"; // Fallback si el login es nulo/vacío en el perfil
+                    UserAvatarFallback = "U";
+                }
+                LicenseType = _sessionService.CurrentProfile.IsBuyer ? "Buyer" : "N/A";
+            }
+            else
+            {
+                UserLogin = "Guest";
+                UserAvatarFallback = "G";
+                LicenseType = "N/A";
+                _navigationService.Navigate(typeof(Views.Pages.WelcomePage)); // Si no hay sesión, volver a Welcome
+            }
+        }
+
+        private async Task FetchAndUpdateLogs()
+        {
+            var logs = await _supabaseService.GetUpdateLogsAsync();
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                UpdateLogs.Clear();
+                if (logs != null)
+                {
+                    foreach (var logEntry in logs)
+                    {
+                        UpdateLogs.Add(logEntry);
+                    }
+                }
+                else
+                {
+                    UpdateLogs.Add(new Models.SupabaseUpdateLogEntry { Title = "INFO", Changes = new List<string> { "Could not load update logs." } });
+                }
+            });
+        }
+
+        private async Task CheckVersion()
+        {
+            VersionStatus = "Checking...";
+            try
+            {
+                string cdragonVersionString = "";
+                try
+                {
+                    var responseCdragon = await _httpClient.GetAsync("https://raw.communitydragon.org/latest/content-metadata.json");
+                    responseCdragon.EnsureSuccessStatusCode();
+                    string jsonCdragon = await responseCdragon.Content.ReadAsStringAsync();
+                    using var docCdragon = JsonDocument.Parse(jsonCdragon);
+                    if (docCdragon.RootElement.TryGetProperty("version", out JsonElement versionElement))
+                    {
+                        var fullCdragonVersion = versionElement.GetString();
+                        var versionParts = fullCdragonVersion?.Split('.').Take(2);
+                        if (versionParts != null)
+                        {
+                            cdragonVersionString = string.Join(".", versionParts);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error fetching CDRAGON version: {ex.Message}");
+                    PatchVersion = "DB Error";
+                    VersionStatus = "Error";
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(cdragonVersionString))
+                {
+                    PatchVersion = "N/A";
+                    VersionStatus = "Unknown";
+                    return;
+                }
+
+                PatchVersion = cdragonVersionString;
+
+                string supabasePatchVersionString = "";
+                try
+                {
+                    byte[]? fileBytes = await _supabaseService.DownloadFileBytesAsync("version", "patch.json");
+
+                    if (fileBytes == null || fileBytes.Length == 0)
+                    {
+                        VersionStatus = "Local N/A";
+                        return;
+                    }
+                    string jsonSupabase = System.Text.Encoding.UTF8.GetString(fileBytes);
+
+                    using var docSupabase = JsonDocument.Parse(jsonSupabase);
+                    if (docSupabase.RootElement.TryGetProperty("version", out JsonElement supabaseVersionElement))
+                    {
+                        var fullSupabaseVersion = supabaseVersionElement.GetString();
+                        var versionParts = fullSupabaseVersion?.Split('.').Take(2);
+                        if (versionParts != null)
+                        {
+                            supabasePatchVersionString = string.Join(".", versionParts);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error fetching/parsing Supabase patch.json: {ex.Message}");
+                    VersionStatus = "Local Error";
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(supabasePatchVersionString))
+                {
+                    VersionStatus = "Local N/A";
+                    return;
+                }
+
+                VersionStatus = cdragonVersionString.Equals(supabasePatchVersionString, StringComparison.OrdinalIgnoreCase) ? "UPDATED" : "OUTDATED";
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error checking version: {ex.Message}");
+                PatchVersion = "Error";
+                VersionStatus = "Error";
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(IsPlayButtonEnabled))]
+        private async Task Play()
+        {
+            IsPlayButtonEnabled = false;
+            _mainWindowViewModel.IsGlobalLoading = true;
+
+            string? currentPipeToken = _sessionService.PipeToken; // Usar el AccessToken de la sesión de Supabase
+
+            if (string.IsNullOrEmpty(currentPipeToken))
+            {
+                Debug.WriteLine("[MainLauncherViewModel.Play] No pipe token (Supabase AccessToken) available.");
+                await Application.Current.Dispatcher.InvokeAsync(async () => {
+                    var noTokenMsgBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "Authentication Error",
+                        Content = "No active session token. Please log in again.",
+                        CloseButtonText = "OK"
+                    };
+                    await noTokenMsgBox.ShowDialogAsync();
+                });
+                _navigationService.Navigate(typeof(Views.Pages.SignInPage));
+                _mainWindowViewModel.IsGlobalLoading = false;
+                IsPlayButtonEnabled = true;
+                return;
+            }
+
+            string pipeName = $"shlauncher-pipe-{Guid.NewGuid()}";
+            string mainAppExecutableName = "skinhunter.exe";
+            string launcherDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string mainAppPath = Path.Combine(launcherDirectory, mainAppExecutableName);
+
+            if (!File.Exists(mainAppPath))
+            {
+                try
+                {
+                    DirectoryInfo? currentDirInfo = new DirectoryInfo(launcherDirectory);
+                    DirectoryInfo? binDir = currentDirInfo.Parent?.Parent;
+                    DirectoryInfo? projectLauncherDir = binDir?.Parent;
+                    DirectoryInfo? solutionDir = projectLauncherDir?.Parent;
+
+                    if (solutionDir != null)
+                    {
+                        string skinHunterProjectDirName = "skinhunter";
+                        string targetFrameworkName = currentDirInfo.Name; // e.g., net9.0-windows
+                        string configurationName = currentDirInfo.Parent?.Name ?? "Debug"; // e.g., Debug
+                        string devMainAppPath = Path.Combine(solutionDir.FullName, skinHunterProjectDirName, "bin", configurationName, targetFrameworkName, mainAppExecutableName);
+                        if (File.Exists(devMainAppPath))
+                        {
+                            mainAppPath = devMainAppPath;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error during development path discovery: {ex.Message}");
+                }
+            }
+
+            if (!File.Exists(mainAppPath))
+            {
+                await Application.Current.Dispatcher.InvokeAsync(async () => {
+                    var notFoundMsgBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "Application Not Found",
+                        Content = $"{mainAppExecutableName} not found.\nSearched at: {mainAppPath}\nAnd common development paths. Please ensure it's in the correct directory.",
+                        CloseButtonText = "OK"
+                    };
+                    await notFoundMsgBox.ShowDialogAsync();
+                });
+                _mainWindowViewModel.IsGlobalLoading = false;
+                IsPlayButtonEnabled = true;
+                return;
+            }
+
+            bool launchAndPipeSuccess = await Task.Run(async () =>
+            {
+                Process? skinhunterProcess = null;
+                try
+                {
+                    ProcessStartInfo startInfo = new ProcessStartInfo(mainAppPath)
+                    {
+                        Arguments = $"--pipe-name \"{pipeName}\"",
+                        UseShellExecute = false
+                    };
+                    skinhunterProcess = Process.Start(startInfo);
+
+                    if (skinhunterProcess == null)
+                    {
+                        throw new InvalidOperationException("Failed to start the skinhunter process.");
+                    }
+                    Debug.WriteLine($"[MainLauncherViewModel.Play.TaskRun] Launched {Path.GetFileName(mainAppPath)} with PID: {skinhunterProcess.Id} and pipe: {pipeName}");
+
+                    bool tokenSentSuccessfully;
+                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20))) // Aumentar timeout si es necesario
+                    {
+                        try
+                        {
+                            tokenSentSuccessfully = await _pipeServerService.SendTokenAsync(pipeName, currentPipeToken, cts.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            Debug.WriteLine($"[MainLauncherViewModel.Play.TaskRun] SendTokenAsync was cancelled for pipe {pipeName}.");
+                            tokenSentSuccessfully = false;
+                            if (skinhunterProcess != null && !skinhunterProcess.HasExited)
+                            {
+                                try { skinhunterProcess.Kill(true); } catch (Exception killEx) { Debug.WriteLine($"Failed to kill skinhunter process: {killEx.Message}"); }
+                            }
+                        }
+                    }
+                    return tokenSentSuccessfully;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MainLauncherViewModel.Play.TaskRun] Exception: {ex.Message}");
+                    if (skinhunterProcess != null && !skinhunterProcess.HasExited)
+                    {
+                        try { skinhunterProcess.Kill(true); } catch (Exception killEx) { Debug.WriteLine($"Failed to kill skinhunter process: {killEx.Message}"); }
+                    }
+
+                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        var launchErrorMsgBox = new Wpf.Ui.Controls.MessageBox
+                        {
+                            Title = "Launch Error (Background Task)",
+                            Content = $"Failed to start or communicate with {Path.GetFileName(mainAppPath)}:\n{ex.Message}",
+                            CloseButtonText = "OK"
+                        };
+                        await launchErrorMsgBox.ShowDialogAsync();
+                    });
+                    return false;
+                }
+            });
+
+            _mainWindowViewModel.IsGlobalLoading = false;
+
+            if (launchAndPipeSuccess)
+            {
+                Debug.WriteLine($"[MainLauncherViewModel.Play] Token exchange reported as successful. Shutting down launcher.");
+                Application.Current.Shutdown();
+            }
+            else
+            {
+                Debug.WriteLine($"[MainLauncherViewModel.Play] Token exchange or launch FAILED. Launcher will NOT shut down.");
+                IsPlayButtonEnabled = true;
+            }
+        }
+
+        [RelayCommand]
+        private async Task Logout() // Hacerlo async para SignOutAsync
+        {
+            _mainWindowViewModel.IsGlobalLoading = true;
+            try
+            {
+                await _supabaseService.Client.Auth.SignOut();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Supabase SignOut: {ex.Message}");
+            }
+            _sessionService.ClearCurrentUser();
+            _authService.ClearRememberedUser(); // Asegurarse de limpiar los tokens guardados
+            _navigationService.Navigate(typeof(Views.Pages.WelcomePage));
+            _mainWindowViewModel.IsGlobalLoading = false;
+        }
+
+        [RelayCommand]
+        private void NavigateToSettings()
+        {
+            _navigationService.Navigate(typeof(Views.Pages.SettingsPage));
+        }
+    }
+}
+
+
+//-==================== END OF FILE: ViewModels\Pages\MainLauncherViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Pages\SettingsViewModel.cs ====================-//
+
+﻿using System.Threading.Tasks;
+
+namespace shlauncher.ViewModels.Pages
+{
+    public partial class SettingsViewModel : ObservableObject, INavigationAware
+    {
+        private bool _isInitialized = false;
+
+        [ObservableProperty]
+        private string _appVersion = String.Empty;
+
+        [ObservableProperty]
+        private ApplicationTheme _currentTheme = ApplicationTheme.Unknown;
+
+        private readonly CurrentUserSessionService _sessionService;
+        private readonly INavigationService _navigationService;
+        private readonly AuthService _authService;
+        private readonly SupabaseService _supabaseService; // Añadir SupabaseService
+        private readonly MainWindowViewModel _mainWindowViewModel;
+
+        public SettingsViewModel(
+            CurrentUserSessionService sessionService,
+            INavigationService navigationService,
+            AuthService authService,
+            SupabaseService supabaseService,
+            MainWindowViewModel mainWindowViewModel)
+        {
+            _sessionService = sessionService;
+            _navigationService = navigationService;
+            _authService = authService;
+            _supabaseService = supabaseService;
+            _mainWindowViewModel = mainWindowViewModel;
+        }
+
+        public Task OnNavigatedToAsync()
+        {
+            if (!_isInitialized)
+                InitializeViewModel();
+            return Task.CompletedTask;
+        }
+
+        public Task OnNavigatedFromAsync()
+        {
+            _isInitialized = false; // Para que se reinicialice si volvemos
+            return Task.CompletedTask;
+        }
+
+        private void InitializeViewModel()
+        {
+            CurrentTheme = ApplicationThemeManager.GetAppTheme();
+            AppVersion = $"SHLauncher - {GetAssemblyVersion()}";
+            _isInitialized = true;
+        }
+
+        private string GetAssemblyVersion()
+        {
+            return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+                ?? String.Empty;
+        }
+
+        [RelayCommand]
+        private void OnChangeTheme(string parameter)
+        {
+            switch (parameter)
+            {
+                case "theme_light":
+                    if (CurrentTheme == ApplicationTheme.Light)
+                        break;
+
+                    ApplicationThemeManager.Apply(ApplicationTheme.Light);
+                    CurrentTheme = ApplicationTheme.Light;
+
+                    break;
+
+                default:
+                    if (CurrentTheme == ApplicationTheme.Dark)
+                        break;
+
+                    ApplicationThemeManager.Apply(ApplicationTheme.Dark);
+                    CurrentTheme = ApplicationTheme.Dark;
+
+                    break;
+            }
+        }
+
+        [RelayCommand]
+        private async Task Logout()
+        {
+            _mainWindowViewModel.IsGlobalLoading = true;
+            try
+            {
+                await _supabaseService.Client.Auth.SignOut();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Supabase SignOut: {ex.Message}");
+            }
+            _sessionService.ClearCurrentUser();
+            _authService.ClearRememberedUser();
+            _navigationService.Navigate(typeof(Views.Pages.WelcomePage));
+            _mainWindowViewModel.IsGlobalLoading = false;
+        }
+
+        [RelayCommand]
+        private void GoBack()
+        {
+            var navigationControl = _navigationService.GetNavigationControl();
+            if (navigationControl != null && navigationControl.CanGoBack)
+            {
+                _navigationService.GoBack();
+            }
+            else // Si no puede ir atrás (probablemente está en MainLauncherPage), ir a MainLauncherPage
+            {
+                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage));
+            }
+        }
+    }
+}
+
+
+//-==================== END OF FILE: ViewModels\Pages\SettingsViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Pages\SignInViewModel.cs ====================-//
+
+﻿using System.Threading.Tasks;
+using System.Diagnostics;
+using shlauncher.Models; // Para Profile
+using Supabase.Gotrue; // Para Session
+
+namespace shlauncher.ViewModels.Pages
+{
+    public partial class SignInViewModel : LauncherBaseViewModel
+    {
+        private readonly INavigationService _navigationService;
+        private readonly AuthService _authService;
+        private readonly CurrentUserSessionService _sessionService;
+        private readonly MainWindowViewModel _mainWindowViewModel;
+
+        [ObservableProperty]
+        private string? _login;
+
+        private string? _password;
+        public string? Password
+        {
+            get => _password;
+            set => SetProperty(ref _password, value);
+        }
+
+        [ObservableProperty]
+        private bool _rememberMe;
+
+        public SignInViewModel(INavigationService navigationService, AuthService authService, CurrentUserSessionService sessionService, MainWindowViewModel mainWindowViewModel)
+        {
+            _navigationService = navigationService;
+            _authService = authService;
+            _sessionService = sessionService;
+            _mainWindowViewModel = mainWindowViewModel;
+            PageTitle = "Sign In - SHLauncher";
+            LoadRememberedUser();
+        }
+
+        private void LoadRememberedUser()
+        {
+            var rememberedLogin = Properties.Settings.Default.RememberedUsername;
+            if (!string.IsNullOrEmpty(rememberedLogin) && !string.IsNullOrEmpty(Properties.Settings.Default.RememberedToken))
+            {
+                Login = rememberedLogin;
+                RememberMe = true;
+            }
+        }
+
+        [RelayCommand]
+        private async Task LoginUser()
+        {
+            if (string.IsNullOrWhiteSpace(Login) || string.IsNullOrWhiteSpace(Password))
+            {
+                await ShowMessageAsync("Login Failed", "Please enter both username and password.");
+                return;
+            }
+
+            _mainWindowViewModel.IsGlobalLoading = true;
+            var (success, sessionData, profileData, errorMessage) = await _authService.LoginAsync(Login, Password);
+
+            if (success && sessionData?.User != null && profileData != null)
+            {
+                _sessionService.SetCurrentUser(profileData, sessionData);
+                if (RememberMe)
+                {
+                    _authService.RememberUser(sessionData.AccessToken, sessionData.RefreshToken, sessionData.User.Id, profileData.Login);
+                }
+                else
+                {
+                    _authService.ClearRememberedUser();
+                }
+                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage));
+            }
+            else
+            {
+                await ShowMessageAsync("Login Failed", errorMessage ?? "Login failed due to an unknown error.");
+            }
+            _mainWindowViewModel.IsGlobalLoading = false;
+        }
+
+        [RelayCommand]
+        private void NavigateToSignUp() // Cambiado de Register a NavigateToSignUp
+        {
+            _navigationService.Navigate(typeof(Views.Pages.SignUpPage));
+        }
+
+        private async Task ShowMessageAsync(string title, string content)
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = title,
+                Content = content,
+                CloseButtonText = "OK"
+            };
+            await msgBox.ShowDialogAsync();
+        }
+
+        public override Task OnNavigatedToAsync()
+        {
+            Password = null; // Limpiar contraseña al navegar a esta página
+            // La carga de usuario recordado es mejor en el constructor o App.xaml.cs para que ocurra una vez
+            return base.OnNavigatedToAsync();
+        }
+    }
+}
+
+
+//-==================== END OF FILE: ViewModels\Pages\SignInViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Pages\SignUpViewModel.cs ====================-//
+
+﻿using System.Threading.Tasks;
+using System.Diagnostics;
+
+namespace shlauncher.ViewModels.Pages
+{
+    public partial class SignUpViewModel : LauncherBaseViewModel
+    {
+        private readonly INavigationService _navigationService;
+        private readonly AuthService _authService;
+        private readonly MainWindowViewModel _mainWindowViewModel;
+
+        [ObservableProperty]
+        private string? _login;
+
+        [ObservableProperty]
+        private string? _email;
+
+        private string? _password;
+        public string? Password
+        {
+            get => _password;
+            set => SetProperty(ref _password, value);
+        }
+
+        private string? _confirmPassword;
+        public string? ConfirmPassword
+        {
+            get => _confirmPassword;
+            set => SetProperty(ref _confirmPassword, value);
+        }
+
+        public SignUpViewModel(INavigationService navigationService, AuthService authService, MainWindowViewModel mainWindowViewModel)
+        {
+            _navigationService = navigationService;
+            _authService = authService;
+            _mainWindowViewModel = mainWindowViewModel;
+            PageTitle = "Sign Up - SHLauncher";
+        }
+
+        [RelayCommand]
+        private async Task SignUp()
+        {
+            if (string.IsNullOrWhiteSpace(Login) ||
+                string.IsNullOrWhiteSpace(Email) ||
+                string.IsNullOrWhiteSpace(Password) ||
+                string.IsNullOrWhiteSpace(ConfirmPassword))
+            {
+                await ShowMessageAsync("Sign Up Failed", "All fields are required.");
+                return;
+            }
+
+            if (Password != ConfirmPassword)
+            {
+                await ShowMessageAsync("Sign Up Failed", "Passwords do not match.");
+                return;
+            }
+
+            _mainWindowViewModel.IsGlobalLoading = true;
+            var (success, user, profile, message) = await _authService.RegisterAsync(Email, Password, Login);
+            _mainWindowViewModel.IsGlobalLoading = false;
+
+            if (success)
+            {
+                await ShowMessageAsync("Registration Successful", message ?? "Please check your email to confirm your account.", true);
+                _navigationService.Navigate(typeof(Views.Pages.SignInPage));
+            }
+            else
+            {
+                await ShowMessageAsync("Sign Up Failed", message ?? "An unknown error occurred during registration.");
+            }
+        }
+
+        [RelayCommand]
+        private void NavigateToSignIn()
+        {
+            _navigationService.Navigate(typeof(Views.Pages.SignInPage));
+        }
+
+        private async Task ShowMessageAsync(string title, string content, bool primaryButtonOk = false)
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = title,
+                Content = content,
+                CloseButtonText = primaryButtonOk ? "" : "OK",
+                PrimaryButtonText = primaryButtonOk ? "OK" : ""
+            };
+            await msgBox.ShowDialogAsync();
+        }
+
+        public override Task OnNavigatedToAsync()
+        {
+            Login = null;
+            Email = null;
+            Password = null;
+            ConfirmPassword = null;
+            return base.OnNavigatedToAsync();
+        }
+    }
+}
+
+
+//-==================== END OF FILE: ViewModels\Pages\SignUpViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Pages\WelcomeViewModel.cs ====================-//
+
+﻿using System.Threading.Tasks;
+using System.Diagnostics;
+
+namespace shlauncher.ViewModels.Pages
+{
+    public partial class WelcomeViewModel : LauncherBaseViewModel
+    {
+        private readonly INavigationService _navigationService;
+        private readonly CurrentUserSessionService _sessionService;
+
+        public WelcomeViewModel(INavigationService navigationService, CurrentUserSessionService sessionService)
+        {
+            _navigationService = navigationService;
+            _sessionService = sessionService;
+            PageTitle = "Welcome - SHLauncher";
+        }
+
+        [RelayCommand]
+        private void NavigateToSignIn()
+        {
+            _navigationService.Navigate(typeof(Views.Pages.SignInPage));
+        }
+
+        // Este comando podría eliminarse o cambiar a "Create Account"
+        [RelayCommand]
+        private void NavigateToSignUp()
+        {
+            _navigationService.Navigate(typeof(Views.Pages.SignUpPage));
+        }
+
+        // El botón BUY se mantiene como estaba, abriendo el link
+        [RelayCommand]
+        private void Buy()
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("https://skinhunterv2.vercel.app") { UseShellExecute = true });
+            }
+            catch (System.Exception ex)
+            {
+                Debug.WriteLine($"Error opening BUY link: {ex.Message}");
+            }
+        }
+
+        public override async Task OnNavigatedToAsync()
+        {
+            // Si el usuario ya está logueado (sesión restaurada), ir directamente a MainLauncherPage
+            if (_sessionService.IsUserLoggedIn)
+            {
+                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage));
+            }
+            await base.OnNavigatedToAsync();
+        }
+    }
+}
+
+
+//-==================== END OF FILE: ViewModels\Pages\WelcomeViewModel.cs ====================-//
+
+//-==================== START OF FILE: ViewModels\Windows\MainWindowViewModel.cs ====================-//
+
+﻿using System.Collections.ObjectModel;
+
+namespace shlauncher.ViewModels.Windows
+{
+    public partial class MainWindowViewModel : ObservableObject
+    {
+        [ObservableProperty]
+        private string _applicationTitle = "Skin-hunter";
+
+        [ObservableProperty]
+        private ObservableCollection<object> _menuItems = new();
+
+        [ObservableProperty]
+        private ObservableCollection<object> _footerMenuItems = new();
+
+        [ObservableProperty]
+        private bool _isGlobalLoading = false;
+    }
+}
+
+//-==================== END OF FILE: ViewModels\Windows\MainWindowViewModel.cs ====================-//
+
+//-==================== START OF FILE: Views\Pages\LoadingPage.xaml ====================-//
+
+<Page
+    x:Class="shlauncher.Views.Pages.LoadingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vms="clr-namespace:shlauncher.ViewModels.Pages"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vms:LoadingViewModel, IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}">
+    <Grid>
+        <ui:ProgressRing IsIndeterminate="True" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+    </Grid>
+</Page>
+
+//-==================== END OF FILE: Views\Pages\LoadingPage.xaml ====================-//
+
+//-==================== START OF FILE: Views\Pages\LoadingPage.xaml.cs ====================-//
+
+﻿namespace shlauncher.Views.Pages
+{
+    public partial class LoadingPage : INavigableView<ViewModels.Pages.LoadingViewModel>
+    {
+        public ViewModels.Pages.LoadingViewModel ViewModel { get; }
+
+        public LoadingPage(ViewModels.Pages.LoadingViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+            InitializeComponent();
+        }
+    }
+}
+
+//-==================== END OF FILE: Views\Pages\LoadingPage.xaml.cs ====================-//
+
+//-==================== START OF FILE: Views\Pages\MainLauncherPage.xaml ====================-//
+
+<Page
+    x:Class="shlauncher.Views.Pages.MainLauncherPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vms="clr-namespace:shlauncher.ViewModels.Pages"
+    xmlns:models="clr-namespace:shlauncher.Models"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vms:MainLauncherViewModel, IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ScrollViewer.CanContentScroll="False">
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Padding="24,16,24,12" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="32" Height="32" CornerRadius="16" Background="{DynamicResource AccentFillColorDefaultBrush}" Margin="0,0,10,0">
+                        <TextBlock Text="{Binding ViewModel.UserAvatarFallback}" FontSize="16" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"/>
+                    </Border>
+                    <TextBlock Text="{Binding ViewModel.UserLogin}" FontSize="15" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:Button Command="{Binding ViewModel.NavigateToSettingsCommand}" Appearance="Transparent" Padding="6">
+                        <ui:SymbolIcon Symbol="Settings24" FontSize="16"/>
+                    </ui:Button>
+                    <ui:Button Content="Logout" 
+                        Command="{Binding ViewModel.LogoutCommand}"
+                        Appearance="Transparent" Margin="8,0,0,0" FontSize="14" FontWeight="Medium"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="24,16,24,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="250"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="300"/>
+            </Grid.ColumnDefinitions>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="-5,0,20,0" Padding="0,0,30,0">
+                <ItemsControl ItemsSource="{Binding ViewModel.UpdateLogs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:SupabaseUpdateLogEntry}">
+                            <StackPanel Margin="0,0,0,24">
+                                <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,0,0,6"/>
+                                <ItemsControl ItemsSource="{Binding Changes}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel LastChildFill="True" Margin="8,0,0,3">
+                                                <TextBlock DockPanel.Dock="Left" Text="• " Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14" TextWrapping="Wrap"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <Border Grid.Column="1" Width="1" Background="{DynamicResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Stretch" Margin="0,0,20,0"/>
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0">
+                    <Border Height="180" CornerRadius="4" Margin="0,0,0,20" Background="{DynamicResource ControlFillColorSecondaryBrush}" ClipToBounds="True">
+                        <Image Source="pack://application:,,,/Assets/launcher_banner.png" Stretch="Uniform" />
+                    </Border>
+
+                    <ui:Card Padding="16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Patch" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ViewModel.PatchVersion}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Status" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ViewModel.VersionStatus}" Foreground="{Binding ViewModel.VersionStatus, Converter={StaticResource VersionStatusToColorConverter}}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="License" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ViewModel.LicenseType}" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <ui:Button Content="LAUNCH" 
+                                       Icon="{ui:SymbolIcon Play24}"
+                                       Command="{Binding ViewModel.PlayCommand}" 
+                                       Appearance="Primary"
+                                       HorizontalAlignment="Stretch"
+                                       Height="40"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </ui:Card>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>
+
+//-==================== END OF FILE: Views\Pages\MainLauncherPage.xaml ====================-//
+
+//-==================== START OF FILE: Views\Pages\MainLauncherPage.xaml.cs ====================-//
+
+﻿namespace shlauncher.Views.Pages
+{
+    public partial class MainLauncherPage : INavigableView<ViewModels.Pages.MainLauncherViewModel>
+    {
+        public ViewModels.Pages.MainLauncherViewModel ViewModel { get; }
+
+        public MainLauncherPage(ViewModels.Pages.MainLauncherViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+            InitializeComponent();
+        }
+    }
+}
+
+//-==================== END OF FILE: Views\Pages\MainLauncherPage.xaml.cs ====================-//
+
+//-==================== START OF FILE: Views\Pages\SettingsPage.xaml ====================-//
+
+﻿<Page
+    x:Class="shlauncher.Views.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:helpers="clr-namespace:shlauncher.Helpers"
+    xmlns:vms="clr-namespace:shlauncher.ViewModels.Pages"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vms:SettingsViewModel, IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Page.Resources>
+        <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="24,16,24,0">
+            <ui:Button Command="{Binding ViewModel.GoBackCommand}" Appearance="Transparent" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="20" />
+            </ui:Button>
+            <TextBlock Text="Settings" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0">
+            <StackPanel Margin="24,16,24,24">
+                <TextBlock
+                    FontSize="20" 
+                    FontWeight="SemiBold"
+                    Text="Personalization" Margin="0,0,0,16"/>
+                <TextBlock Text="Theme" Margin="0,0,0,8" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                <RadioButton
+                    Margin="0,6,0,0"
+                    Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
+                    CommandParameter="theme_light"
+                    Content="Light"
+                    GroupName="themeSelect"
+                    IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
+                <RadioButton
+                    Margin="0,8,0,0"
+                    Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
+                    CommandParameter="theme_dark"
+                    Content="Dark"
+                    GroupName="themeSelect"
+                    IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
+
+                <ui:HyperlinkButton NavigateUri="https://wpfui.lepo.co/" Content="WPF UI Documentation" Margin="0,20,0,0"/>
+
+                <TextBlock
+                    Margin="0,32,0,0"
+                    FontSize="20"
+                    FontWeight="SemiBold"
+                    Text="Account" />
+                <TextBlock Text="{Binding ViewModel.AppVersion, Mode=OneWay}" Margin="0,12,0,16" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+
+                <ui:Button Content="Logout" 
+                           Command="{Binding ViewModel.LogoutCommand}" 
+                           Appearance="Secondary" 
+                           HorizontalAlignment="Left" 
+                           Width="120"
+                           Margin="0,8,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
+
+//-==================== END OF FILE: Views\Pages\SettingsPage.xaml ====================-//
+
+//-==================== START OF FILE: Views\Pages\SettingsPage.xaml.cs ====================-//
+
+﻿namespace shlauncher.Views.Pages
+{
+    public partial class SettingsPage : INavigableView<ViewModels.Pages.SettingsViewModel>
+    {
+        public ViewModels.Pages.SettingsViewModel ViewModel { get; }
+
+        public SettingsPage(ViewModels.Pages.SettingsViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+            InitializeComponent();
+        }
+    }
+}
+
+//-==================== END OF FILE: Views\Pages\SettingsPage.xaml.cs ====================-//
+
+//-==================== START OF FILE: Views\Pages\SignInPage.xaml ====================-//
+
+<Page
+    x:Class="shlauncher.Views.Pages.SignInPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vms="clr-namespace:shlauncher.ViewModels.Pages"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vms:SignInViewModel, IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+        <StackPanel Width="320" Margin="20">
+            <TextBlock Text="Sign in" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,5"/>
+            <TextBlock Text="To log in, enter your credentials." Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14" Margin="0,0,0,25"/>
+
+            <TextBlock Text="Username" FontSize="14" FontWeight="Medium" Margin="0,0,0,5"/>
+            <ui:TextBox PlaceholderText="Enter your username"
+                        Text="{Binding ViewModel.Login, UpdateSourceTrigger=PropertyChanged}" 
+                        Margin="0,0,0,15"
+                        Icon="{ui:SymbolIcon Person24}"/>
+
+            <TextBlock Text="Password" FontSize="14" FontWeight="Medium" Margin="0,0,0,5"/>
+            <ui:PasswordBox PlaceholderText="Enter your password"
+                            Password="{Binding ViewModel.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            Margin="0,0,0,20"
+                            Icon="{ui:SymbolIcon Password24}"/>
+
+            <CheckBox Content="Remember me" IsChecked="{Binding ViewModel.RememberMe, Mode=TwoWay}" Margin="0,0,0,25"/>
+
+            <ui:Button Content="LOGIN"
+                       Command="{Binding ViewModel.LoginUserCommand}"
+                       Appearance="Primary"
+                       HorizontalAlignment="Stretch"
+                       Height="36"
+                       Margin="0,0,0,15"/>
+
+            <ui:Button Content="Don't have an account? Sign Up" 
+                       Command="{Binding ViewModel.NavigateToSignUpCommand}"
+                       Appearance="Transparent"
+                       HorizontalAlignment="Center"
+                       FontSize="13"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+    </Grid>
+</Page>
+
+
+//-==================== END OF FILE: Views\Pages\SignInPage.xaml ====================-//
+
+//-==================== START OF FILE: Views\Pages\SignInPage.xaml.cs ====================-//
+
+﻿namespace shlauncher.Views.Pages
+{
+    public partial class SignInPage : INavigableView<ViewModels.Pages.SignInViewModel>
+    {
+        public ViewModels.Pages.SignInViewModel ViewModel { get; }
+
+        public SignInPage(ViewModels.Pages.SignInViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+            InitializeComponent();
+        }
+
+        private void PasswordBox_PasswordChanged(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (sender is PasswordBox passwordBox)
+            {
+                ViewModel.Password = passwordBox.Password;
+            }
+        }
+    }
+}
+
+//-==================== END OF FILE: Views\Pages\SignInPage.xaml.cs ====================-//
+
+//-==================== START OF FILE: Views\Pages\SignUpPage.xaml ====================-//
+
+<Page
+    x:Class="shlauncher.Views.Pages.SignUpPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vms="clr-namespace:shlauncher.ViewModels.Pages"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vms:SignUpViewModel, IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+        <StackPanel Width="320" Margin="20">
+            <TextBlock Text="Create Account" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,5"/>
+            <TextBlock Text="Enter your details to sign up." Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="14" Margin="0,0,0,25"/>
+
+            <TextBlock Text="Login" FontSize="14" FontWeight="Medium" Margin="0,0,0,5"/>
+            <ui:TextBox PlaceholderText="Enter your desired login"
+                        Text="{Binding ViewModel.Login, UpdateSourceTrigger=PropertyChanged}"
+                        Margin="0,0,0,15"
+                        Icon="{ui:SymbolIcon Person24}"/>
+
+            <TextBlock Text="Email" FontSize="14" FontWeight="Medium" Margin="0,0,0,5"/>
+            <ui:TextBox PlaceholderText="Enter your email"
+                        Text="{Binding ViewModel.Email, UpdateSourceTrigger=PropertyChanged}" 
+                        Margin="0,0,0,15"
+                        Icon="{ui:SymbolIcon Mail24}"/>
+
+            <TextBlock Text="Password" FontSize="14" FontWeight="Medium" Margin="0,0,0,5"/>
+            <ui:PasswordBox PlaceholderText="Enter your password"
+                            Password="{Binding ViewModel.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            Margin="0,0,0,15"
+                            Icon="{ui:SymbolIcon Password24}"/>
+
+            <TextBlock Text="Confirm Password" FontSize="14" FontWeight="Medium" Margin="0,0,0,5"/>
+            <ui:PasswordBox PlaceholderText="Confirm your password"
+                            Password="{Binding ViewModel.ConfirmPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            Margin="0,0,0,20"
+                            Icon="{ui:SymbolIcon Password24}"/>
+
+            <ui:Button Content="SIGN UP"
+                       Command="{Binding ViewModel.SignUpCommand}"
+                       Appearance="Primary"
+                       HorizontalAlignment="Stretch"
+                       Height="36"
+                       Margin="0,0,0,15"/>
+
+            <ui:Button Content="Already have an account? Sign In" 
+                       Command="{Binding ViewModel.NavigateToSignInCommand}"
+                       Appearance="Transparent"
+                       HorizontalAlignment="Center"
+                       FontSize="13"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+    </Grid>
+</Page>
+
+
+//-==================== END OF FILE: Views\Pages\SignUpPage.xaml ====================-//
+
+//-==================== START OF FILE: Views\Pages\SignUpPage.xaml.cs ====================-//
+
+﻿namespace shlauncher.Views.Pages
+{
+    public partial class SignUpPage : INavigableView<ViewModels.Pages.SignUpViewModel>
+    {
+        public ViewModels.Pages.SignUpViewModel ViewModel { get; }
+
+        public SignUpPage(ViewModels.Pages.SignUpViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+            InitializeComponent();
+        }
+    }
+}
+
+
+//-==================== END OF FILE: Views\Pages\SignUpPage.xaml.cs ====================-//
+
+//-==================== START OF FILE: Views\Pages\WelcomePage.xaml ====================-//
+
+<Page
+    x:Class="shlauncher.Views.Pages.WelcomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vms="clr-namespace:shlauncher.ViewModels.Pages"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vms:WelcomeViewModel, IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+        <StackPanel Width="300" HorizontalAlignment="Center">
+            <TextBlock Text="Welcome!" FontSize="32" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+            <TextBlock Text="Choose what you want to do" FontSize="16" Foreground="{DynamicResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,30" TextAlignment="Center"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ui:Button Grid.Column="0" Content="SIGN IN" 
+                           Command="{Binding ViewModel.NavigateToSignInCommand}" 
+                           Appearance="Primary"
+                           HorizontalAlignment="Stretch" 
+                           Height="36"
+                           Margin="0,0,5,0"/>
+                <ui:Button Grid.Column="2" Content="SIGN UP" 
+                           Command="{Binding ViewModel.NavigateToSignUpCommand}" 
+                           Appearance="Secondary"
+                           HorizontalAlignment="Stretch"
+                           Height="36"
+                           Margin="5,0,0,0"/>
+            </Grid>
+            <ui:HyperlinkButton Content="Go to website" Margin="0,20,0,0" HorizontalAlignment="Center" Command="{Binding ViewModel.BuyCommand}"/>
+        </StackPanel>
+    </Grid>
+</Page>
+
+
+//-==================== END OF FILE: Views\Pages\WelcomePage.xaml ====================-//
+
+//-==================== START OF FILE: Views\Pages\WelcomePage.xaml.cs ====================-//
+
+﻿namespace shlauncher.Views.Pages
+{
+    public partial class WelcomePage : INavigableView<ViewModels.Pages.WelcomeViewModel>
+    {
+        public ViewModels.Pages.WelcomeViewModel ViewModel { get; }
+
+        public WelcomePage(ViewModels.Pages.WelcomeViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+            InitializeComponent();
+        }
+    }
+}
+
+//-==================== END OF FILE: Views\Pages\WelcomePage.xaml.cs ====================-//
+
+//-==================== START OF FILE: Views\Windows\MainWindow.xaml ====================-//
+
+﻿<ui:FluentWindow
+    x:Class="shlauncher.Views.Windows.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:local="clr-namespace:shlauncher.Views.Windows"
+    xmlns:vmsWin="clr-namespace:shlauncher.ViewModels.Windows"
+    mc:Ignorable="d"
+    Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
+    Width="860"
+    Height="600"
+    MinWidth="700"
+    MinHeight="500"
+    d:DataContext="{d:DesignInstance Type=vmsWin:MainWindowViewModel, IsDesignTimeCreatable=True}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ExtendsContentIntoTitleBar="True"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    WindowBackdropType="Mica"
+    WindowCornerPreference="Round"
+    WindowStartupLocation="CenterScreen">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="{Binding ViewModel.ApplicationTitle}" CloseWindowByDoubleClickOnIcon="True">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon Source="pack://application:,,,/Assets/icon.ico" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+
+        <ui:NavigationView
+            x:Name="RootNavigation"
+            Grid.Row="1"
+            Padding="0"
+            IsBackButtonVisible="Collapsed"
+            IsPaneOpen="False"
+            MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
+            FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
+            PaneDisplayMode="Top">
+            <ui:NavigationView.ContentOverlay>
+                <Grid x:Name="ContentOverlayGrid">
+                    <ui:ProgressRing IsIndeterminate="True" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                 Visibility="{Binding ViewModel.IsGlobalLoading, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                </Grid>
+            </ui:NavigationView.ContentOverlay>
+        </ui:NavigationView>
+
+        <ContentPresenter x:Name="RootContentDialog" Grid.RowSpan="2" />
+
+    </Grid>
+</ui:FluentWindow>
+
+//-==================== END OF FILE: Views\Windows\MainWindow.xaml ====================-//
+
+//-==================== START OF FILE: Views\Windows\MainWindow.xaml.cs ====================-//
+
+﻿using Wpf.Ui.Appearance;
+
+namespace shlauncher.Views.Windows
+{
+    public partial class MainWindow : INavigationWindow
+    {
+        public MainWindowViewModel ViewModel { get; }
+
+        public MainWindow(
+            MainWindowViewModel viewModel,
+            INavigationViewPageProvider navigationViewPageProvider,
+            INavigationService navigationService,
+            IThemeService themeService)
+        {
+            ViewModel = viewModel;
+            DataContext = this;
+
+            themeService.SetTheme(ApplicationTheme.Dark);
+
+            InitializeComponent();
+            SetPageService(navigationViewPageProvider);
+            navigationService.SetNavigationControl(RootNavigation);
+        }
+
+        public INavigationView GetNavigation() => RootNavigation;
+
+        public bool Navigate(Type pageType) => RootNavigation.Navigate(pageType);
+
+        public void SetPageService(INavigationViewPageProvider navigationViewPageProvider) =>
+            RootNavigation.SetPageProviderService(navigationViewPageProvider);
+
+        public void ShowWindow() => Show();
+
+        public void CloseWindow() => Close();
+
+        public void SetServiceProvider(IServiceProvider serviceProvider)
+        {
+            // This method is part of the interface.
+            // WPF UI's default NavigationWindow implementation might use this
+            // internally if needed, or it's for extensibility.
+            // For now, a basic implementation or even throwing NotImplementedException
+            // if you don't directly use it. However, to satisfy the interface:
+            // RootNavigation.SetServiceProvider(serviceProvider); // This line might not be needed if SetPageProviderService is used
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            System.Windows.Application.Current.Shutdown();
+        }
+    }
+}
+
+//-==================== END OF FILE: Views\Windows\MainWindow.xaml.cs ====================-//
+

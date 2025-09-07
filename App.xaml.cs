@@ -54,6 +54,7 @@ namespace shlauncher
             var supabaseService = Services.GetRequiredService<SupabaseService>();
             await supabaseService.InitializeAsync(); // Asegura que el cliente Supabase esté listo
 
+            // Obtener AuthService para activar la suscripción a eventos de refresco.
             var authService = Services.GetRequiredService<AuthService>();
             var sessionService = Services.GetRequiredService<CurrentUserSessionService>();
 

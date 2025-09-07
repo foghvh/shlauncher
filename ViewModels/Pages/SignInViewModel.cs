@@ -13,7 +13,7 @@ namespace shlauncher.ViewModels.Pages
         private readonly MainWindowViewModel _mainWindowViewModel;
 
         [ObservableProperty]
-        private string? _email; // Cambiado de Username a Email para el login
+        private string? _login;
 
         private string? _password;
         public string? Password
@@ -37,36 +37,30 @@ namespace shlauncher.ViewModels.Pages
 
         private void LoadRememberedUser()
         {
-            // La lógica de GetRememberedUserSessionAsync ya es llamada en App.OnStartup
-            // Aquí podríamos pre-rellenar el email si _sessionService.CurrentUser.Email existe
-            // o si Properties.Settings.Default.RememberedUsername (que ahora sería email) existe.
-            // Por simplicidad, dejaremos que App.OnStartup maneje la restauración de sesión.
-            // Si no hay sesión restaurada, esta página se mostrará y el usuario ingresará datos.
-            // Si el usuario fue recordado pero la sesión expiró, podríamos querer pre-rellenar el email.
-            var rememberedLoginForUi = Properties.Settings.Default.RememberedUsername; // Esto ahora contendría el login/email
-            if (!string.IsNullOrEmpty(rememberedLoginForUi) && Properties.Settings.Default.RememberedToken != "")
+            var rememberedLogin = Properties.Settings.Default.RememberedUsername;
+            if (!string.IsNullOrEmpty(rememberedLogin) && !string.IsNullOrEmpty(Properties.Settings.Default.RememberedToken))
             {
-                Email = rememberedLoginForUi; // Asumimos que el "username" recordado es el email
+                Login = rememberedLogin;
                 RememberMe = true;
             }
         }
 
         [RelayCommand]
-        private async Task Login()
+        private async Task LoginUser()
         {
-            if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+            if (string.IsNullOrWhiteSpace(Login) || string.IsNullOrWhiteSpace(Password))
             {
-                await ShowMessageAsync("Login Failed", "Please enter both email and password.");
+                await ShowMessageAsync("Login Failed", "Please enter both username and password.");
                 return;
             }
 
             _mainWindowViewModel.IsGlobalLoading = true;
-            var (success, sessionData, profileData, errorMessage) = await _authService.LoginAsync(Email, Password);
+            var (success, sessionData, profileData, errorMessage) = await _authService.LoginAsync(Login, Password);
 
             if (success && sessionData?.User != null && profileData != null)
             {
                 _sessionService.SetCurrentUser(profileData, sessionData);
-                if (RememberMe && sessionData.User.Id != null && profileData.Login != null && sessionData.AccessToken != null && sessionData.RefreshToken != null)
+                if (RememberMe)
                 {
                     _authService.RememberUser(sessionData.AccessToken, sessionData.RefreshToken, sessionData.User.Id, profileData.Login);
                 }
@@ -74,7 +68,7 @@ namespace shlauncher.ViewModels.Pages
                 {
                     _authService.ClearRememberedUser();
                 }
-                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage)); // O LoadingPage si prefieres
+                _navigationService.Navigate(typeof(Views.Pages.MainLauncherPage));
             }
             else
             {
